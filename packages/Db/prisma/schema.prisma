@@ -1,0 +1,53 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+model User {
+  id       String   @id
+  balance  Int      @default(0) 
+  orders   Order[]
+  tradesM  Trade[] @relation("maker")
+  tradesT  Trade[] @relation("taker")
+}
+
+enum OrderSide {
+  YES
+  NO
+}
+
+model Order {
+  id        String     @id
+  userId    String
+  user      User       @relation(fields: [userId], references: [id])
+  side      OrderSide
+  price     Int     
+  qty       Int
+  openQty   Int
+  status    String
+  createdAt DateTime   @default(now())
+  trades    Trade[]    @relation("orderAggressor")
+}
+
+model Trade {
+  id               String   @id
+  orderAggressorId String?
+  orderAggressor   Order?   @relation("orderAggressor", fields: [orderAggressorId], references: [id])
+  price            Int     
+  qty              Int
+  takerId          String
+  taker            User     @relation("taker", fields: [takerId], references: [id])
+  makerId          String
+  maker            User     @relation("maker", fields: [makerId], references: [id])
+  createdAt        DateTime @default(now())
+}

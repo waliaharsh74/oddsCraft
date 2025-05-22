@@ -5,7 +5,15 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@repo/ui/*": [
+        "../../packages/ui/src/*"
+      ]
+    }
   },
   "include": [
     "**/*.ts",
@@ -14,6 +22,7 @@
     "next.config.js",
     ".next/types/**/*.ts"
   ],
+  
   "exclude": [
     "node_modules"
   ]
