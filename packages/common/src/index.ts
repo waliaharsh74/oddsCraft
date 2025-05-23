@@ -1,3 +1,15 @@
 import type { Side, OrderInMem, TradeMsg } from "./types"
 import { OrderBook, BookLevel } from "./classes"
-export { Side, OrderInMem, TradeMsg, OrderBook, BookLevel }
+import { signupSchema, signinSchema, cancelSchema, orderSchema } from "./zodSchema"
+export {
+    Side,
+    OrderInMem,
+    TradeMsg,
+    OrderBook,
+    BookLevel,
+    signupSchema,
+    signinSchema,
+    cancelSchema,
+    orderSchema
+
+}

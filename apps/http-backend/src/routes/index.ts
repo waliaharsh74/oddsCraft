@@ -3,9 +3,11 @@ import { prisma, OrderSide } from "@repo/db"
 import Redis from 'ioredis';
 
 import { randomUUID } from "crypto";
-import { Side, TradeMsg, OrderBook } from "@repo/common"
+import { Side, TradeMsg, OrderBook, signupSchema, signinSchema, cancelSchema, orderSchema } from "@repo/common"
+import bcrypt from "bcryptjs"
 
 import { EventEmitter } from 'events';
+import { validate ,sign} from "../middlewares";
 const router:Router = express.Router()
 const book = new OrderBook();
 const bus = new EventEmitter();
@@ -18,13 +20,23 @@ function publish(channel: string, payload: unknown) {
 bus.on('trade', (trades: TradeMsg[]) => publish('trade', trades));
 bus.on('depth', (d: any) => publish('depth', d));
 
-router.post("/user", async (req, res) => {
+router.post("/auth/signup",validate(signupSchema), async (req, res) => {
+    const { email, password } = req.body as {email:string,password:string};
+    const exists = await prisma.user.findUnique({ where: { email } });
+    if (exists){  res.status(400).json({ error: "email_taken" });return}
+    const user = await prisma.user.create({ data: { id: randomUUID(), email, passwordHash: await bcrypt.hash(password, 10) } });
+    res.json({ token: sign(user.id) });
+});
+
+router.post("/auth/signin", validate(signinSchema),async (req, res) => {
     try {
-       
-    } catch (e: any) {
-        if (e?.message === "FUNDS") { res.status(400).json({ error: "insufficient balance" }); return }
-        console.error(e);
-        res.status(500).json({ error: "server error" });
+        
+        const { email, password } = req.body;
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user || !(await bcrypt.compare(password, user.passwordHash))) { res.status(401).json({ error: "invalid" });return}
+        res.json({ token: sign(user.id) });
+    } catch (error) {
+        
     }
 });
 router.post("/orders", async (req, res) => {
