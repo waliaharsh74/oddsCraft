@@ -1,10 +1,9 @@
 import { z } from "zod"
 import jwt from "jsonwebtoken";
 import { NextFunction, Request, Response } from "express";
+import { AuthRequest } from "../interfaces";
 const JWT_SECRET = process.env.JWT_SECRET || "changeme";
-interface AuthRequest extends Request {
-    userId: string
-}
+
 export const auth = (req: AuthRequest, res: Response, next: NextFunction) => {
     const h = req.headers.authorization;
     if (!h?.startsWith("Bearer ")) {

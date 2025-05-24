@@ -6,21 +6,23 @@
 
 generator client {
   provider = "prisma-client-js"
-  
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
 model User {
-  id       String   @id @default(uuid())
-  balance  Int      @default(0) 
+  id           String   @id @default(uuid())
   email        String   @unique
   passwordHash String
-  orders   Order[]
-  tradesM  Trade[] @relation("maker")
-  tradesT  Trade[] @relation("taker")
+  balancePaise BigInt   @default(0)
+  createdAt    DateTime @default(now())
+
+  orders        Order[] @relation("UserOrders")
+  tradesAsMaker Trade[] @relation("MakerTrades")
+  tradesAsTaker Trade[] @relation("TakerTrades")
 }
 
 enum OrderSide {
@@ -28,28 +30,46 @@ enum OrderSide {
   NO
 }
 
+enum OrderStatus {
+  OPEN
+  FILLED
+  CANCELLED
+}
+
 model Order {
-  id        String     @id
-  userId    String
-  user      User       @relation(fields: [userId], references: [id])
-  side      OrderSide
-  price     Int     
-  qty       Int
-  openQty   Int
-  status    String
-  createdAt DateTime   @default(now())
-  trades    Trade[]    @relation("orderAggressor")
+  id         String      @id @default(uuid())
+  userId     String
+  side       OrderSide
+  pricePaise Int
+  qty        Int
+  openQty    Int
+  status     OrderStatus
+  createdAt  DateTime    @default(now())
+
+  user User @relation("UserOrders", fields: [userId], references: [id])
+
+  makerTrades     Trade[] @relation("MakerOrder")
+  aggressorTrades Trade[] @relation("AggressorOrder")
+
+  @@index([status, side])
 }
 
 model Trade {
-  id               String   @id
-  orderAggressorId String?
-  orderAggressor   Order?   @relation("orderAggressor", fields: [orderAggressorId], references: [id])
-  price            Int     
+  id               String   @id @default(uuid())
+  orderAggressorId String
+  makerOrderId     String
+  pricePaise       Int
   qty              Int
   takerId          String
-  taker            User     @relation("taker", fields: [takerId], references: [id])
   makerId          String
-  maker            User     @relation("maker", fields: [makerId], references: [id])
   createdAt        DateTime @default(now())
+
+  aggressorOrder Order @relation("AggressorOrder", fields: [orderAggressorId], references: [id])
+  makerOrder     Order @relation("MakerOrder", fields: [makerOrderId], references: [id])
+
+  maker User @relation("MakerTrades", fields: [makerId], references: [id])
+  taker User @relation("TakerTrades", fields: [takerId], references: [id])
+
+  @@index([makerId])
+  @@index([takerId])
 }

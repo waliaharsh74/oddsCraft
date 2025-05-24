@@ -189,13 +189,7 @@
 
 "use client";
 
-// Quick‑start React front‑end for the split prediction‑market backend
-// ────────────────────────────────────────────────────────────────────
-// • Fetches initial depth via REST (http://localhost:3000/depth)
-// • Streams live depth + trades from WS (ws://localhost:4000)
-// • Simple order ticket that POSTs to http://localhost:3000/orders
-// • Tailwind CSS classes – import "tailwindcss/tailwind.css" in your app root
-// • Replace localhost ports as needed in production env
+
 
 import { useEffect, useState } from "react";
 import axios from "axios";
