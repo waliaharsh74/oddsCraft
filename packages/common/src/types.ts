@@ -16,5 +16,7 @@ export type TradeMsg = {
     qty: number;
     taker: string;
     maker: string;
+    makerOrderId:string,
+    remainingMakerQty:number,
     ts: number;
 };
