@@ -64,7 +64,7 @@ router.post("/orders", validate(orderSchema), async (req: AuthRequest, res) => {
                 data: { balancePaise: { decrement: stakePaise } },
             });
 
-            // create order row
+         
             const dbOrder = await tx.order.create({
                 data: {
                     id: randomUUID(),
@@ -77,7 +77,6 @@ router.post("/orders", validate(orderSchema), async (req: AuthRequest, res) => {
                 },
             });
 
-            // run in-mem match
             const trades = book.addOrder({
                 id: dbOrder.id,
                 userId,
@@ -146,26 +145,32 @@ router.post("/orders", validate(orderSchema), async (req: AuthRequest, res) => {
 
 
 router.delete("/orders/:id", validate(cancelSchema), async (req: AuthRequest, res) => {
-    const { id } = req?.params;
-    const userId = req.userId as string;
+    try {
+        const { id } = req?.params;
+        const userId = req.userId as string;
+        if(!id)throw Error("Id is undefined")
 
-    const row = await prisma.order.findUnique({ where: { id } });
-    if (!row || row.userId !== userId || row.status !== "OPEN") {
-        res.status(404).json({ error: "not_found" });
-        return
-    }
-    const ok = book.cancel(id);
-    if (!ok) {
-        res.status(410).json({ error: "already_matched" });
-        return
-    }
-    await prisma.order.update({
-        where: { id },
-        data: { status: "CANCELLED", openQty: 0 },
-    });
+        const row = await prisma.order.findUnique({ where: { id } });
+        if (!row || row.userId !== userId || row.status !== "OPEN") {
+            res.status(404).json({ error: "not_found" });
+            return
+        }
+        const ok = book.cancel(id);
+        if (!ok) {
+            res.status(410).json({ error: "already_matched" });
+            return
+        }
+        await prisma.order.update({
+            where: { id },
+            data: { status: "CANCELLED", openQty: 0 },
+        });
 
-    bus.emit("depth", { bids: book.depth("YES"), asks: book.depth("NO") });
-    res.json({ ok: true });
+        bus.emit("depth", { bids: book.depth("YES"), asks: book.depth("NO") });
+        res.json({ ok: true });
+    } catch (error) {
+        
+    }
+    
 });
 
 

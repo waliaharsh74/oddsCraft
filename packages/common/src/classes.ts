@@ -26,16 +26,6 @@ export class OrderBook extends EventEmitter {
     bids = new Map<number, BookLevel>();
     asks = new Map<number, BookLevel>(); 
 
-    // private add(map: Map<number, BookLevel>, o: OrderInMem) {
-    //     const lvl = map.get(o.price) ?? new BookLevel(o.price);
-    //     lvl.orders.push(o);
-    //     map.set(o.price, lvl);
-    // }
-    // private best(map: Map<number, BookLevel>, cmp: (a: number, b: number) => boolean) {
-    //     let best: number | undefined;
-    //     for (const p of map.keys()) if (best === undefined || cmp(p, best)) best = p;
-    //     return best;
-    // }
     depth(side: Side) {
         const map = side === "YES" ? this.bids : this.asks;
         const rows = [...map.values()].map((lvl) => ({
@@ -101,7 +91,7 @@ export class OrderBook extends EventEmitter {
         this.emit("depth", { bids: this.depth("YES"), asks: this.depth("NO") });
 
         return trades;
-      }
+    }
 
     cancel(id: string): boolean {
         for (const map of [this.bids, this.asks]) {

@@ -187,183 +187,199 @@
 
 
 
+// "use client";
+
+
+
+// import { useEffect, useState } from "react";
+// import axios from "axios";
+// import {
+//   Card,
+//   CardHeader,
+//   CardTitle,
+//   CardContent,
+// } from "@repo/ui/components/card";
+// import { Button } from "@repo/ui/components/button";
+// import { Input } from "@repo/ui/components/input";
+
+// // Types shared with backend
+// interface DepthRow {
+//   price: number;
+//   qty: number;
+// }
+// interface DepthPayload {
+//   bids: DepthRow[];
+//   asks: DepthRow[];
+// }
+// interface TradeMsg {
+//   tradeId: string;
+//   side: "YES" | "NO";
+//   price: number;
+//   qty: number;
+//   taker: string;
+//   maker: string;
+//   ts: number;
+// }
+
+// const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+// const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8081";
+
+// export default function FrontEndTradeApp() {
+//   // ---------------- State ---------------- //
+//   const [depth, setDepth] = useState<DepthPayload>({ bids: [], asks: [] });
+//   const [trades, setTrades] = useState<TradeMsg[]>([]);
+
+//   // order ticket
+//   const [userId, setUserId] = useState("alice");
+//   const [side, setSide] = useState<"YES" | "NO">("YES");
+//   const [price, setPrice] = useState(7.5);
+//   const [qty, setQty] = useState(100);
+//   const [status, setStatus] = useState<string | null>(null);
+
+//   // ---------------- Effects ---------------- //
+//   // 1) load snapshot via REST
+//   useEffect(() => {
+//     axios.get<DepthPayload>(`${API_BASE}/api/v1/depth`).then((res) => setDepth(res.data));
+//   }, []);
+
+//   // 2) WS stream for depth & trades
+//   useEffect(() => {
+//     const ws = new WebSocket(WS_URL + "/ws");
+//     ws.onmessage = (e) => {
+//       const msg = JSON.parse(e.data);
+//       if (msg.type === "depth") setDepth(msg.payload as DepthPayload);
+//       if (msg.type === "trade")
+//         setTrades((t) => [...msg.payload, ...t].slice(0, 30)); // keep last 30
+//     };
+//     return () => ws.close();
+//   }, []);
+
+//   // ---------------- Handlers ---------------- //
+//   const submitOrder = async () => {
+//     try {
+//       setStatus("Posting…");
+//       const res = await axios.post(`${API_BASE}/api/v1/orders`, {
+//         userId,
+//         side,
+//         price: Number(price),
+//         qty: Number(qty),
+//       });
+//       setStatus(`✅ Order ID ${res.data.orderId}`);
+//     } catch (e: any) {
+//       setStatus(`❌ ${e.response?.data?.error || "error"}`);
+//     }
+//   };
+
+//   // ---------------- UI ---------------- //
+//   return (
+//     <div className="grid lg:grid-cols-3 gap-4 p-4 font-mono bg-zinc-950 text-zinc-200 min-h-screen">
+//       {/* Order Book */}
+//       <Card className="lg:col-span-1">
+//         <CardHeader>
+//           <CardTitle>Order Book</CardTitle>
+//         </CardHeader>
+//         <CardContent className="flex justify-between space-x-4 text-xs">
+//           {/* Asks */}
+//           <div className="flex-1">
+//             {depth.asks.map((r) => (
+//               <div key={`ask-${r.price}`} className="flex justify-between text-red-400">
+//                 <span>{r.price.toFixed(2)}</span>
+//                 <span>{r.qty}</span>
+//               </div>
+//             ))}
+//           </div>
+//           {/* Bids */}
+//           <div className="flex-1">
+//             {depth.bids.map((r) => (
+//               <div key={`bid-${r.price}`} className="flex justify-between text-green-400">
+//                 <span>{r.price.toFixed(2)}</span>
+//                 <span>{r.qty}</span>
+//               </div>
+//             ))}
+//           </div>
+//         </CardContent>
+//       </Card>
+
+//       {/* Trade Tape */}
+//       <Card className="lg:col-span-1 overflow-y-auto max-h-[70vh]">
+//         <CardHeader>
+//           <CardTitle>Recent Trades</CardTitle>
+//         </CardHeader>
+//         <CardContent className="space-y-1 text-xs">
+//           {trades.map((t) => (
+//             <div key={t.tradeId} className="flex justify-between">
+//               <span className={t.side === "YES" ? "text-green-400" : "text-red-400"}>{t.side}</span>
+//               <span>{t.price.toFixed(2)}</span>
+//               <span>{t.qty}</span>
+//             </div>
+//           ))}
+//         </CardContent>
+//       </Card>
+
+//       {/* Order Ticket */}
+//       <Card className="lg:col-span-1">
+//         <CardHeader>
+//           <CardTitle>Place Order</CardTitle>
+//         </CardHeader>
+//         <CardContent className="space-y-3 text-sm">
+//           <div>
+//             <label className="block mb-1">User ID</label>
+//             <Input value={userId} onChange={(e) => setUserId(e.target.value)} />
+//           </div>
+//           <div className="flex space-x-2 items-end">
+//             <div className="flex-1">
+//               <label className="block mb-1">Side</label>
+//               <select
+//                 className="w-full bg-zinc-800 p-2 rounded"
+//                 value={side}
+//                 onChange={(e) => setSide(e.target.value as "YES" | "NO")}
+//               >
+//                 <option value="YES">YES (Buy)</option>
+//                 <option value="NO">NO (Sell)</option>
+//               </select>
+//             </div>
+//             <div className="flex-1">
+//               <label className="block mb-1">Price (₹)</label>
+//               <Input
+//                 type="number"
+//                 step="0.1"
+//                 min="0"
+//                 max="10"
+//                 value={price}
+//                 onChange={(e) => setPrice(Number(e.target.value))}
+//               />
+//             </div>
+//             <div className="flex-1">
+//               <label className="block mb-1">Qty</label>
+//               <Input
+//                 type="number"
+//                 value={qty}
+//                 onChange={(e) => setQty(Number(e.target.value))}
+//               />
+//             </div>
+//           </div>
+//           <Button className="w-full" onClick={submitOrder}>
+//             Submit
+//           </Button>
+//           {status && <p className="text-xs mt-2">{status}</p>}
+//         </CardContent>
+//       </Card>
+//     </div>
+//   );
+// }
+
 "use client";
 
+import { useState } from "react";
+import AuthCard from "./auth";
+import { useRouter } from "next/navigation";
+// import TradeDashboard from "./dashboard";
 
-
-import { useEffect, useState } from "react";
-import axios from "axios";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@repo/ui/components/card";
-import { Button } from "@repo/ui/components/button";
-import { Input } from "@repo/ui/components/input";
-
-// Types shared with backend
-interface DepthRow {
-  price: number;
-  qty: number;
-}
-interface DepthPayload {
-  bids: DepthRow[];
-  asks: DepthRow[];
-}
-interface TradeMsg {
-  tradeId: string;
-  side: "YES" | "NO";
-  price: number;
-  qty: number;
-  taker: string;
-  maker: string;
-  ts: number;
-}
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8081";
-
-export default function FrontEndTradeApp() {
-  // ---------------- State ---------------- //
-  const [depth, setDepth] = useState<DepthPayload>({ bids: [], asks: [] });
-  const [trades, setTrades] = useState<TradeMsg[]>([]);
-
-  // order ticket
-  const [userId, setUserId] = useState("alice");
-  const [side, setSide] = useState<"YES" | "NO">("YES");
-  const [price, setPrice] = useState(7.5);
-  const [qty, setQty] = useState(100);
-  const [status, setStatus] = useState<string | null>(null);
-
-  // ---------------- Effects ---------------- //
-  // 1) load snapshot via REST
-  useEffect(() => {
-    axios.get<DepthPayload>(`${API_BASE}/api/v1/depth`).then((res) => setDepth(res.data));
-  }, []);
-
-  // 2) WS stream for depth & trades
-  useEffect(() => {
-    const ws = new WebSocket(WS_URL + "/ws");
-    ws.onmessage = (e) => {
-      const msg = JSON.parse(e.data);
-      if (msg.type === "depth") setDepth(msg.payload as DepthPayload);
-      if (msg.type === "trade")
-        setTrades((t) => [...msg.payload, ...t].slice(0, 30)); // keep last 30
-    };
-    return () => ws.close();
-  }, []);
-
-  // ---------------- Handlers ---------------- //
-  const submitOrder = async () => {
-    try {
-      setStatus("Posting…");
-      const res = await axios.post(`${API_BASE}/api/v1/orders`, {
-        userId,
-        side,
-        price: Number(price),
-        qty: Number(qty),
-      });
-      setStatus(`✅ Order ID ${res.data.orderId}`);
-    } catch (e: any) {
-      setStatus(`❌ ${e.response?.data?.error || "error"}`);
-    }
-  };
-
-  // ---------------- UI ---------------- //
-  return (
-    <div className="grid lg:grid-cols-3 gap-4 p-4 font-mono bg-zinc-950 text-zinc-200 min-h-screen">
-      {/* Order Book */}
-      <Card className="lg:col-span-1">
-        <CardHeader>
-          <CardTitle>Order Book</CardTitle>
-        </CardHeader>
-        <CardContent className="flex justify-between space-x-4 text-xs">
-          {/* Asks */}
-          <div className="flex-1">
-            {depth.asks.map((r) => (
-              <div key={`ask-${r.price}`} className="flex justify-between text-red-400">
-                <span>{r.price.toFixed(2)}</span>
-                <span>{r.qty}</span>
-              </div>
-            ))}
-          </div>
-          {/* Bids */}
-          <div className="flex-1">
-            {depth.bids.map((r) => (
-              <div key={`bid-${r.price}`} className="flex justify-between text-green-400">
-                <span>{r.price.toFixed(2)}</span>
-                <span>{r.qty}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Trade Tape */}
-      <Card className="lg:col-span-1 overflow-y-auto max-h-[70vh]">
-        <CardHeader>
-          <CardTitle>Recent Trades</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-1 text-xs">
-          {trades.map((t) => (
-            <div key={t.tradeId} className="flex justify-between">
-              <span className={t.side === "YES" ? "text-green-400" : "text-red-400"}>{t.side}</span>
-              <span>{t.price.toFixed(2)}</span>
-              <span>{t.qty}</span>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Order Ticket */}
-      <Card className="lg:col-span-1">
-        <CardHeader>
-          <CardTitle>Place Order</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div>
-            <label className="block mb-1">User ID</label>
-            <Input value={userId} onChange={(e) => setUserId(e.target.value)} />
-          </div>
-          <div className="flex space-x-2 items-end">
-            <div className="flex-1">
-              <label className="block mb-1">Side</label>
-              <select
-                className="w-full bg-zinc-800 p-2 rounded"
-                value={side}
-                onChange={(e) => setSide(e.target.value as "YES" | "NO")}
-              >
-                <option value="YES">YES (Buy)</option>
-                <option value="NO">NO (Sell)</option>
-              </select>
-            </div>
-            <div className="flex-1">
-              <label className="block mb-1">Price (₹)</label>
-              <Input
-                type="number"
-                step="0.1"
-                min="0"
-                max="10"
-                value={price}
-                onChange={(e) => setPrice(Number(e.target.value))}
-              />
-            </div>
-            <div className="flex-1">
-              <label className="block mb-1">Qty</label>
-              <Input
-                type="number"
-                value={qty}
-                onChange={(e) => setQty(Number(e.target.value))}
-              />
-            </div>
-          </div>
-          <Button className="w-full" onClick={submitOrder}>
-            Submit
-          </Button>
-          {status && <p className="text-xs mt-2">{status}</p>}
-        </CardContent>
-      </Card>
-    </div>
-  );
+export default function App() {
+  const router=useRouter()
+  const [authed, setAuthed] = useState(!!localStorage.getItem("oddsCraftToken"));
+  if(authed){
+    router.push('/dashboard')
+  }
+  return <AuthCard onAuth={() => setAuthed(true)} />;
 }
