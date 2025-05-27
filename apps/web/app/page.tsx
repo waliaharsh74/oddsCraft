@@ -1,385 +1,50 @@
-// "use client";
 
-// import { useEffect, useRef, useState } from "react";
-// import {
-//     Card,
-//     CardHeader,
-//     CardTitle,
-//     CardContent,
-// } from "@/components/ui/card";
-// import { createChart, ISeriesApi, CandlestickData, CandlestickSeries } from "lightweight-charts";
+'use client';
+import CandleChart from './components/CandleChart';
+import useGsapLanding from './components/useGsapLanding';
+import LogoReveal from './components/LogoReveal';
+import { Button } from '@repo/ui/components/button';
+import Link from 'next/link';
 
-// /**
-//  * Very small utility types to model Binance stream payloads
-//  */
-// interface CandleStreamMessage {
-//     e: string; // event type
-//     E: number; // event time
-//     s: string; // symbol
-//     k: {
-//         t: number; // start time
-//         T: number; // close time
-//         i: string; // interval
-//         o: string; // open
-//         c: string; // close
-//         h: string; // high
-//         l: string; // low
-//         v: string; // volume
-//         x: boolean; // is close?
-//     };
-// }
+export default function LandingPage() {
+  useGsapLanding();
 
-// interface DepthLevel {
-//     price: number;
-//     size: number;
-// }
+  return (
+    <div className="relative min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-800 overflow-hidden">
+      {/* Decorative blobs */}
+      <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse"></div>
+      <div className="absolute -bottom-32 -right-32 w-[28rem] h-[28rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse"></div>
 
-// const MAX_LEVELS = 18;
+      <header className="flex items-center justify-between px-8 py-6 relative z-10">
 
-// export default function OrderBookDashboard() {
-//     const chartContainerRef = useRef<HTMLDivElement | null>(null);
-//     const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+        {/* <h1 className="text-2xl font-extrabold text-white">Oddscraft</h1>
+        <nav className="space-x-4">
+          <Link href="/signin"><Button variant="ghost">Sign in</Button></Link>
+          <Link href="/signup"><Button>Get started</Button></Link>
+        </nav> */}
+      </header>
 
-//     const [bids, setBids] = useState<DepthLevel[]>([]);
-//     const [asks, setAsks] = useState<DepthLevel[]>([]);
+      <main className="relative z-10 flex flex-col lg:flex-row items-center justify-center px-6 lg:px-24 pt-10 lg:pt-0 gap-12">
+        {/* Hero copy */}
+        <div className="max-w-lg text-center lg:text-left">
+          <h2 className="hero-tagline text-4xl sm:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-400 via-sky-400 to-emerald-400 bg-clip-text text-transparent">
+            Trade Outcomes.<br/>Shape Probability.
+          </h2>
+          <p className="hero-sub mt-4 text-zinc-300 text-lg">
+            Bet on live events with lightning‑fast order‑books, dynamic pricing, and transparent odds.
+          </p>
+          <div className="mt-8 flex justify-center lg:justify-start gap-4">
+            <Link href="/signup"><Button size="lg">Start Trading</Button></Link>
+            <Link href="/learn"><Button variant="outline" size="lg">Learn more</Button></Link>
+          </div>
+        </div>
+        
 
-//     // ------ Candlestick Chart Setup ------ //
-//     useEffect(() => {
-//         if (!chartContainerRef.current) return;
-
-//         const chart = createChart(chartContainerRef.current, {
-//             width: chartContainerRef.current.clientWidth,
-//             height: 500,
-//             layout: {
-//                 background: {  color: "#0f0f0f" },
-//                 textColor: "#d1d5db", // Tailwind zinc-300
-//             },
-//             grid: {
-//                 vertLines: { color: "#222" },
-//                 horzLines: { color: "#222" },
-//             },
-//             timeScale: {
-//                 timeVisible: true,
-//                 secondsVisible: false,
-//             },
-//         });
-
-//         const candleSeries = chart.addSeries(CandlestickSeries,{
-//             upColor: "#16a34a",
-//             downColor: "#dc2626",
-//             borderVisible: false,
-//             wickUpColor: "#16a34a",
-//             wickDownColor: "#dc2626",
-//         });
-//         candleSeriesRef.current = candleSeries;
-
-//         // fetch initial historical candles
-//         fetch(
-//             "https://api.binance.com/api/v3/klines?symbol=SOLUSDC&interval=1m&limit=500"
-//         )
-//             .then((res) => res.json())
-//             .then((klines) => {
-//                 const data: CandlestickData[] = klines.map((k: any) => ({
-//                     time: k[0] / 1000,
-//                     open: parseFloat(k[1]),
-//                     high: parseFloat(k[2]),
-//                     low: parseFloat(k[3]),
-//                     close: parseFloat(k[4]),
-//                 }));
-//                 candleSeries.setData(data);
-//             });
-
-//         const ws = new WebSocket("wss://fstream.binance.com/ws/bnbusdt@aggTrade");
-//         ws.onmessage = (event) => {
-//             const msg: CandleStreamMessage = JSON.parse(event.data);
-//             if (msg.e === "kline") {
-//                 const k = msg.k;
-//                 candleSeries.update({
-//                     // @ts-ignore
-//                     time: k.t / 1000,
-//                     open: parseFloat(k.o),
-//                     high: parseFloat(k.h),
-//                     low: parseFloat(k.l),
-//                     close: parseFloat(k.c),
-//                 });
-//             }
-//         };
-
-//         const handleResize = () => {
-//             if (chartContainerRef.current) {
-//                 chart.applyOptions({
-//                     width: chartContainerRef.current.clientWidth,
-//                 });
-//             }
-//         };
-//         window.addEventListener("resize", handleResize);
-
-//         return () => {
-//             ws.close();
-//             window.removeEventListener("resize", handleResize);
-//             chart.remove();
-//         };
-//     }, []);
-
-//     // ------ Orderbook (depth) setup ------ //
-//     useEffect(() => {
-//         const depthWs = new WebSocket(
-//             "wss://stream.binance.com:9443/ws/solusdc@depth20@100ms"
-//         );
-
-//         depthWs.onmessage = (event) => {
-//             const msg = JSON.parse(event.data);
-//             const formatLevels = (levels: string[][]): DepthLevel[] =>
-//                 levels
-//                     .slice(0, MAX_LEVELS)
-//                     .map(([p, s]) => ({ price: parseFloat(p), size: parseFloat(s) }));
-
-//             setBids(formatLevels(msg.bids));
-//             setAsks(formatLevels(msg.asks));
-//         };
-
-//         return () => depthWs.close();
-//     }, []);
-
-//     return (
-//         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 p-4">
-//             {/* Chart */}
-//             <Card className="col-span-2">
-//                 <CardHeader>
-//                     <CardTitle>SOL / USDC – 1m</CardTitle>
-//                 </CardHeader>
-//                 <CardContent>
-//                     <div ref={chartContainerRef} />
-//                 </CardContent>
-//             </Card>
-
-//             {/* Orderbook */}
-//             <Card>
-//                 <CardHeader>
-//                     <CardTitle>Order Book</CardTitle>
-//                 </CardHeader>
-//                 <CardContent>
-//                     <div className="flex flex-col space-y-2 text-sm font-mono">
-//                         {/* Asks */}
-//                         {asks.map((lvl) => (
-//                             <div key={`ask-${lvl.price}`} className="flex justify-between text-red-400">
-//                                 <span>{lvl.price.toFixed(2)}</span>
-//                                 <span>{lvl.size.toFixed(2)}</span>
-//                             </div>
-//                         ))}
-//                         <hr className="my-2 opacity-40" />
-//                         {/* Bids */}
-//                         {bids.map((lvl) => (
-//                             <div key={`bid-${lvl.price}`} className="flex justify-between text-green-400">
-//                                 <span>{lvl.price.toFixed(2)}</span>
-//                                 <span>{lvl.size.toFixed(2)}</span>
-//                             </div>
-//                         ))}
-//                     </div>
-//                 </CardContent>
-//             </Card>
-//         </div>
-//     );
-// }
-
-
-
-
-
-
-// "use client";
-
-
-
-// import { useEffect, useState } from "react";
-// import axios from "axios";
-// import {
-//   Card,
-//   CardHeader,
-//   CardTitle,
-//   CardContent,
-// } from "@repo/ui/components/card";
-// import { Button } from "@repo/ui/components/button";
-// import { Input } from "@repo/ui/components/input";
-
-// // Types shared with backend
-// interface DepthRow {
-//   price: number;
-//   qty: number;
-// }
-// interface DepthPayload {
-//   bids: DepthRow[];
-//   asks: DepthRow[];
-// }
-// interface TradeMsg {
-//   tradeId: string;
-//   side: "YES" | "NO";
-//   price: number;
-//   qty: number;
-//   taker: string;
-//   maker: string;
-//   ts: number;
-// }
-
-// const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
-// const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8081";
-
-// export default function FrontEndTradeApp() {
-//   // ---------------- State ---------------- //
-//   const [depth, setDepth] = useState<DepthPayload>({ bids: [], asks: [] });
-//   const [trades, setTrades] = useState<TradeMsg[]>([]);
-
-//   // order ticket
-//   const [userId, setUserId] = useState("alice");
-//   const [side, setSide] = useState<"YES" | "NO">("YES");
-//   const [price, setPrice] = useState(7.5);
-//   const [qty, setQty] = useState(100);
-//   const [status, setStatus] = useState<string | null>(null);
-
-//   // ---------------- Effects ---------------- //
-//   // 1) load snapshot via REST
-//   useEffect(() => {
-//     axios.get<DepthPayload>(`${API_BASE}/api/v1/depth`).then((res) => setDepth(res.data));
-//   }, []);
-
-//   // 2) WS stream for depth & trades
-//   useEffect(() => {
-//     const ws = new WebSocket(WS_URL + "/ws");
-//     ws.onmessage = (e) => {
-//       const msg = JSON.parse(e.data);
-//       if (msg.type === "depth") setDepth(msg.payload as DepthPayload);
-//       if (msg.type === "trade")
-//         setTrades((t) => [...msg.payload, ...t].slice(0, 30)); // keep last 30
-//     };
-//     return () => ws.close();
-//   }, []);
-
-//   // ---------------- Handlers ---------------- //
-//   const submitOrder = async () => {
-//     try {
-//       setStatus("Posting…");
-//       const res = await axios.post(`${API_BASE}/api/v1/orders`, {
-//         userId,
-//         side,
-//         price: Number(price),
-//         qty: Number(qty),
-//       });
-//       setStatus(`✅ Order ID ${res.data.orderId}`);
-//     } catch (e: any) {
-//       setStatus(`❌ ${e.response?.data?.error || "error"}`);
-//     }
-//   };
-
-//   // ---------------- UI ---------------- //
-//   return (
-//     <div className="grid lg:grid-cols-3 gap-4 p-4 font-mono bg-zinc-950 text-zinc-200 min-h-screen">
-//       {/* Order Book */}
-//       <Card className="lg:col-span-1">
-//         <CardHeader>
-//           <CardTitle>Order Book</CardTitle>
-//         </CardHeader>
-//         <CardContent className="flex justify-between space-x-4 text-xs">
-//           {/* Asks */}
-//           <div className="flex-1">
-//             {depth.asks.map((r) => (
-//               <div key={`ask-${r.price}`} className="flex justify-between text-red-400">
-//                 <span>{r.price.toFixed(2)}</span>
-//                 <span>{r.qty}</span>
-//               </div>
-//             ))}
-//           </div>
-//           {/* Bids */}
-//           <div className="flex-1">
-//             {depth.bids.map((r) => (
-//               <div key={`bid-${r.price}`} className="flex justify-between text-green-400">
-//                 <span>{r.price.toFixed(2)}</span>
-//                 <span>{r.qty}</span>
-//               </div>
-//             ))}
-//           </div>
-//         </CardContent>
-//       </Card>
-
-//       {/* Trade Tape */}
-//       <Card className="lg:col-span-1 overflow-y-auto max-h-[70vh]">
-//         <CardHeader>
-//           <CardTitle>Recent Trades</CardTitle>
-//         </CardHeader>
-//         <CardContent className="space-y-1 text-xs">
-//           {trades.map((t) => (
-//             <div key={t.tradeId} className="flex justify-between">
-//               <span className={t.side === "YES" ? "text-green-400" : "text-red-400"}>{t.side}</span>
-//               <span>{t.price.toFixed(2)}</span>
-//               <span>{t.qty}</span>
-//             </div>
-//           ))}
-//         </CardContent>
-//       </Card>
-
-//       {/* Order Ticket */}
-//       <Card className="lg:col-span-1">
-//         <CardHeader>
-//           <CardTitle>Place Order</CardTitle>
-//         </CardHeader>
-//         <CardContent className="space-y-3 text-sm">
-//           <div>
-//             <label className="block mb-1">User ID</label>
-//             <Input value={userId} onChange={(e) => setUserId(e.target.value)} />
-//           </div>
-//           <div className="flex space-x-2 items-end">
-//             <div className="flex-1">
-//               <label className="block mb-1">Side</label>
-//               <select
-//                 className="w-full bg-zinc-800 p-2 rounded"
-//                 value={side}
-//                 onChange={(e) => setSide(e.target.value as "YES" | "NO")}
-//               >
-//                 <option value="YES">YES (Buy)</option>
-//                 <option value="NO">NO (Sell)</option>
-//               </select>
-//             </div>
-//             <div className="flex-1">
-//               <label className="block mb-1">Price (₹)</label>
-//               <Input
-//                 type="number"
-//                 step="0.1"
-//                 min="0"
-//                 max="10"
-//                 value={price}
-//                 onChange={(e) => setPrice(Number(e.target.value))}
-//               />
-//             </div>
-//             <div className="flex-1">
-//               <label className="block mb-1">Qty</label>
-//               <Input
-//                 type="number"
-//                 value={qty}
-//                 onChange={(e) => setQty(Number(e.target.value))}
-//               />
-//             </div>
-//           </div>
-//           <Button className="w-full" onClick={submitOrder}>
-//             Submit
-//           </Button>
-//           {status && <p className="text-xs mt-2">{status}</p>}
-//         </CardContent>
-//       </Card>
-//     </div>
-//   );
-// }
-
-"use client";
-
-import { useState } from "react";
-import AuthCard from "./auth";
-import { useRouter } from "next/navigation";
-// import TradeDashboard from "./dashboard";
-
-export default function App() {
-  const router=useRouter()
-  const [authed, setAuthed] = useState(!!localStorage.getItem("oddsCraftToken"));
-  if(authed){
-    router.push('/dashboard')
-  }
-  return <AuthCard onAuth={() => setAuthed(true)} />;
+        {/* Hero chart */}
+        <div className="hero-chart w-full lg:w-[520px] rounded-lg ring-1 ring-zinc-700 backdrop-blur-md/40 bg-zinc-800/30 p-4">
+          <CandleChart />
+        </div>
+      </main>
+    </div>
+  );
 }

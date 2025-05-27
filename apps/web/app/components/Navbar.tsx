@@ -16,9 +16,6 @@ const Navbar = () => {
         return null;
     }
     const { login, handleLogOut } = context
-    // const { login, handleLogOut } = useContext(AuthContext);
-
-    //  const [login, setLogin] = useState(false);
     const router = useRouter();
 
     const handleLogOutNav = () => {
@@ -29,10 +26,7 @@ const Navbar = () => {
     useEffect(() => {
         const userLogin = localStorage.getItem("oddsCraftToken")
 
-        // if (userLogin) {
-        //   setLogin(true)
-
-        // }
+        
         const handleScroll = () => {
             setIsScrolled(window.scrollY > 10);
         };
@@ -55,7 +49,7 @@ const Navbar = () => {
                         <div className="absolute inset-0 bg-blue-500 rounded-md rotate-45 transform -translate-x-1 translate-y-1"></div>
                         <div className="absolute inset-0 bg-purple-500 rounded-md"></div>
                     </div>
-                    <span className="text-xl font-semibold tracking-tight">Shapesmith</span>
+                    <span className="text-2xl font-extrabold tracking-tight text-white">OddsCraft</span>
                 </Link>
 
                 <div className="hidden md:flex items-center space-x-8">
