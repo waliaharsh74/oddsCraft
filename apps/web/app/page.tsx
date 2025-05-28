@@ -5,8 +5,13 @@ import useGsapLanding from './components/useGsapLanding';
 import LogoReveal from './components/LogoReveal';
 import { Button } from '@repo/ui/components/button';
 import Link from 'next/link';
+import { useEffect } from 'react';
 
 export default function LandingPage() {
+
+  useEffect(()=>{
+
+  },[])
   useGsapLanding();
 
   return (
@@ -15,14 +20,14 @@ export default function LandingPage() {
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse"></div>
       <div className="absolute -bottom-32 -right-32 w-[28rem] h-[28rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse"></div>
 
-      <header className="flex items-center justify-between px-8 py-6 relative z-10">
+      {/* <header className="flex items-center justify-between px-8 py-6 relative z-10">
 
-        {/* <h1 className="text-2xl font-extrabold text-white">Oddscraft</h1>
+        <h1 className="text-2xl font-extrabold text-white">Oddscraft</h1>
         <nav className="space-x-4">
           <Link href="/signin"><Button variant="ghost">Sign in</Button></Link>
           <Link href="/signup"><Button>Get started</Button></Link>
-        </nav> */}
-      </header>
+        </nav>
+      </header> */}
 
       <main className="relative z-10 flex flex-col lg:flex-row items-center justify-center px-6 lg:px-24 pt-10 lg:pt-0 gap-12">
         {/* Hero copy */}

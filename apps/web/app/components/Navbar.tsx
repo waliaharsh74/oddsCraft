@@ -24,9 +24,6 @@ const Navbar = () => {
     }
 
     useEffect(() => {
-        const userLogin = localStorage.getItem("oddsCraftToken")
-
-        
         const handleScroll = () => {
             setIsScrolled(window.scrollY > 10);
         };
@@ -37,8 +34,8 @@ const Navbar = () => {
 
     return (
         <nav
-            className={`fixed w-full top-0 left-0 right-0 z-50 py-4 px-6 md:px-10 transition-all duration-300 ${isScrolled ? 'bg-white/80 backdrop-blur-lg shadow-sm' : 'bg-transparent'
-                }`}
+            className={`fixed w-full top-0 left-0 right-0 z-50 py-4 px-6 md:px-10 transition-all duration-300 bg-transparent`}
+                
         >
             <div className="max-w-full mx-auto flex items-center justify-between">
                 <Link
@@ -56,7 +53,7 @@ const Navbar = () => {
 
                     {!login && <div className="flex items-center space-x-4">
                         <Link href="/signin">
-                            <Button variant="ghost" size="sm" className="px-4">
+                            <Button variant="outline" size="sm" className="px-4">
                                 Sign In
                             </Button>
                         </Link>
