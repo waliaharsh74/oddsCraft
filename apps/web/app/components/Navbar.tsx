@@ -34,8 +34,8 @@ const Navbar = () => {
 
     return (
         <nav
-            className={`fixed w-full top-0 left-0 right-0 z-50 py-4 px-6 md:px-10 transition-all duration-300 bg-transparent`}
-                
+            className={`fixed w-full top-0 left-0 right-0 z-50 py-4 px-6 md:px-10 transition-all duration-300 ${isScrolled ? 'bg-white/80 backdrop-blur-lg shadow-sm' : 'bg-transparent'
+          }`}
         >
             <div className="max-w-full mx-auto flex items-center justify-between">
                 <Link
@@ -46,19 +46,19 @@ const Navbar = () => {
                         <div className="absolute inset-0 bg-blue-500 rounded-md rotate-45 transform -translate-x-1 translate-y-1"></div>
                         <div className="absolute inset-0 bg-purple-500 rounded-md"></div>
                     </div>
-                    <span className="text-2xl font-extrabold tracking-tight text-white">OddsCraft</span>
+                    <span className={`text-2xl font-extrabold tracking-tight ${!isScrolled? 'text-white':''}`}>OddsCraft</span>
                 </Link>
 
                 <div className="hidden md:flex items-center space-x-8">
 
                     {!login && <div className="flex items-center space-x-4">
                         <Link href="/signin">
-                            <Button variant="outline" size="sm" className="px-4">
+                            <Button variant="outline" size="sm" className="px-4 hover:cursor-pointer">
                                 Sign In
                             </Button>
                         </Link>
                         <Link href="/signup">
-                            <Button size="sm" className="px-4">
+                            <Button size="sm" className="px-4 hover:cursor-pointer">
                                 Sign Up
                             </Button>
                         </Link>

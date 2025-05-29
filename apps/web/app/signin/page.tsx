@@ -156,8 +156,10 @@ export default function SignIn() {
                 </div>
             </div>
 
-            <div className="hidden lg:block lg:w-1/2 relative bg-primary overflow-hidden">
+            <div className="hidden lg:block lg:w-1/2 relative bg-primary overflow-hidden from-zinc-950 via-zinc-900 to-zinc-800 ">
                 <div className="absolute inset-0 bg-mesh-pattern opacity-10"></div>
+                <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse"></div>
+                <div className="absolute -bottom-32 -right-32 w-[28rem] h-[28rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse"></div>
 
                 <div className="absolute inset-0 flex flex-col justify-center items-center p-12 text-white">
                     <div className="max-w-md text-center">
