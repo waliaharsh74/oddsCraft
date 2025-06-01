@@ -9,18 +9,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function LandingPage() {
-  const [key, setKey] = useState(0); 
-  const router = useRouter();
-
-  // useEffect(() => {
-  
-  //   console.log(router.refresh);
-  //   setTimeout(() => {
-      
-  //     setKey(prevKey => prevKey + 1);
-  //   }, 1000);
-  // }, [router.refresh]); 
-
 
   useGsapLanding();
 
@@ -42,8 +30,8 @@ export default function LandingPage() {
             Bet on live events with lightning‑fast order‑books, dynamic pricing, and transparent odds.
           </p>
           <div className="mt-8 flex justify-center lg:justify-start gap-4">
-            <Link href="/signup"><Button size="lg" className='hover:cursor-pointer'>Start Trading</Button></Link>
-            <Link href="/learn"><Button variant="outline" size="lg" className='hover:cursor-pointer'>Learn more</Button></Link>
+            <Link href="/dashboard"><Button size="lg" className='hover:cursor-pointer'>Start Trading</Button></Link>
+            <Link href="/user"><Button variant="outline" size="lg" className='hover:cursor-pointer'>Wallet Top Up</Button></Link>
           </div>
         </div>
         

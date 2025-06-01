@@ -4,11 +4,11 @@ import Redis from 'ioredis';
 import { Response } from "express";
 import rateLimit from "express-rate-limit"
 import { randomUUID } from "crypto";
-import { Side, TradeMsg, OrderBook, signupSchema, signinSchema, cancelSchema, orderSchema } from "@repo/common"
+import { Side, TradeMsg, OrderBook, signupSchema, signinSchema, cancelSchema, orderSchema, balanceSchema } from "@repo/common"
 import bcrypt from "bcryptjs"
 
 import { EventEmitter } from 'events';
-import { validate, sign, auth } from "../middlewares";
+import {  sign, auth } from "../middlewares";
 import { AuthRequest } from "../interfaces";
 const router: Router = express.Router()
 const book = new OrderBook();
@@ -27,33 +27,63 @@ router.use(
         max: 60,
     })
 )
-router.post("/auth/signup", validate(signupSchema), async (req, res) => {
-    const { email, password } = req.body as { email: string, password: string };
-    const exists = await prisma.user.findUnique({ where: { email } });
-    if (exists) { res.status(400).json({ error: "email_taken" }); return }
-    const user = await prisma.user.create({ data: { id: randomUUID(), email, passwordHash: await bcrypt.hash(password, 10) } });
-    res.json({ token: sign(user.id) });
+router.get("/hello", async (req, res) => {
+    res.json({ msg:"hello" });
+    
+
+});
+router.post("/auth/signup", async (req, res) => {
+    try {
+        const result = signupSchema.safeParse(req.body);
+        if (!result.success) {
+            res.status(400).json({ error: result.error.flatten() })
+            return
+        };
+        const { email, password } = req.body as { email: string, password: string };
+        const exists = await prisma.user.findUnique({ where: { email } });
+        if (exists) { res.status(400).json({ error: "email already registered" }); return }
+        const user = await prisma.user.create({ data: { id: randomUUID(), email, passwordHash: await bcrypt.hash(password, 10) } });
+        res.json({ 
+            id:user.id,
+            msg:"User Registered Successfully!"
+         });
+    } catch (error) {
+        console.log(error);
+    }
+
 });
 
-router.post("/auth/signin", validate(signinSchema), async (req, res) => {
+router.post("/auth/signin", async (req, res) => {
     try {
-
+        const result = signinSchema.safeParse(req.body);
+        if (!result.success) {
+            res.status(400).json({ error: result.error.flatten() })
+            return
+        };
         const { email, password } = req.body;
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user || !(await bcrypt.compare(password, user.passwordHash))) { res.status(401).json({ error: "invalid" }); return }
-        res.json({ token: sign(user.id) });
+        if (!user || !(await bcrypt.compare(password, user.passwordHash))) { res.status(401).json({ error: "Invalid Credentials" }); return }
+        res.json({
+            token: sign(user.id),
+            msg: "Welcome Back!"
+        });
     } catch (error) {
-
+        console.log(error);
     }
 });
 router.use(auth);
-router.post("/orders", validate(orderSchema), async (req: AuthRequest, res) => {
-    const { side, price, qty } = req.body as { side: Side; price: number; qty: number };
-    const userId = req.userId as string;
-
-    const stakePaise = Math.round(price * 100) * qty;
-
+router.post("/orders",  async (req: AuthRequest, res) => {
+    
     try {
+        const parsed = orderSchema.safeParse(req.body);
+        if (!parsed.success) {
+            res.status(400).json({ error: parsed.error.flatten() })
+            return
+        };
+        const { side, price, qty } = req.body as { side: Side; price: number; qty: number };
+        const userId = req.userId as string;
+    
+        const stakePaise = Math.round(price * 100) * qty;
         const result = await prisma.$transaction(async (tx) => {
 
             const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
@@ -115,7 +145,6 @@ router.post("/orders", validate(orderSchema), async (req: AuthRequest, res) => {
                 });
             }
 
-            // update taker (the new order) openQty
             const filled = trades.reduce((s, t) => s + t.qty, 0);
             await tx.order.update({
                 where: { id: dbOrder.id },
@@ -142,13 +171,72 @@ router.post("/orders", validate(orderSchema), async (req: AuthRequest, res) => {
         res.status(500).json({ error: "server_error" });
     }
 });
+router.get("/me/balance",  async (req: AuthRequest, res) => {
 
-
-router.delete("/orders/:id", validate(cancelSchema), async (req: AuthRequest, res) => {
     try {
-        const { id } = req?.params;
         const userId = req.userId as string;
-        if(!id)throw Error("Id is undefined")
+        const balance=await prisma.user.findFirst({
+            where:{
+                id:userId
+            }
+        })
+        // console.log(balance);
+        if (!balance ){
+            res.status(404).json({ error: "Can't find the User", });
+            return
+        }
+        const amt = Number(balance?.balancePaise)/100;
+        res.json({ msg: "Balance ", balance:amt});
+
+    } catch (e: any) {
+        console.error(e);
+
+        res.status(500).json({ error: "server error!" });
+    }
+});
+router.post("/wallet/topup",  async (req: AuthRequest, res) => {
+
+    try {
+        const userId = req.userId as string;
+        console.log(balanceSchema);
+        const parsed = balanceSchema.safeParse(req.body);
+        if (!parsed.success) {
+            res.status(400).json({ error: parsed.error.flatten() })
+            return
+        };
+        const { amt } = req.body as {  amt: number };        
+        const userDetails=await prisma.user.update({
+            where :{
+                id:userId
+            },
+            data:{
+                balancePaise:{
+                    increment:amt*100
+                }
+            }
+        })
+        if(!userDetails){
+            res.status(404).json({ error: "Can't Increase the balance", });
+        }
+        res.json({ msg: "Balance Increased "});
+
+    } catch (e: any) {
+        console.error(e);
+
+        res.status(500).json({ error: "server error!" });
+    }
+});
+
+
+router.delete("/orders/:id", async (req: AuthRequest, res) => {
+    try {
+        const result = cancelSchema.safeParse({params:req?.params});
+        if (!result.success) {
+            res.status(400).json({ error: result.error.flatten() })
+            return
+        };
+        const id  = result.data.params;
+        const userId = req.userId as string;
 
         const row = await prisma.order.findUnique({ where: { id } });
         if (!row || row.userId !== userId || row.status !== "OPEN") {

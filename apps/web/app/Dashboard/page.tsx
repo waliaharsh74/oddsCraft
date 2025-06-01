@@ -1,7 +1,8 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import api from "../api";
+import { useContext, useEffect, useState } from "react";
+
+import { withProtectedRoute } from '@/app/context/withProtectedRoute'
 import {
     Card, CardHeader, CardTitle, CardContent,
 } from "@repo/ui/components/card";
@@ -11,24 +12,54 @@ import { Button } from "@repo/ui/components/button";
 interface DepthRow { price: number; qty: number; }
 interface Depth { bids: DepthRow[]; asks: DepthRow[]; }
 interface Trade { tradeId: string; side: "YES" | "NO"; price: number; qty: number; ts: number; }
+import { AuthContext } from "../context/AuthContext";
+import axios from "axios";
+
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8081";
 
-export default function TradeDashboard() {
-    /* state */
+function TradeDashboard() {
+     const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+    const api = axios.create({ baseURL: `${API_BASE}/api/v1` });
+
+     function setToken() {
+        const context = useContext(AuthContext);
+        if (!context) {
+            return null;
+        }
+        const { userToken } = context;
+        const token = userToken
+        if (token) {
+            
+            api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+        } else {
+            
+            
+            delete api.defaults.headers.common["Authorization"];
+        }
+    }
+
+    setToken();
+   
     const [depth, setDepth] = useState<Depth>({ bids: [], asks: [] });
     const [trades, setTrades] = useState<Trade[]>([]);
     const [price, setPrice] = useState(7.5);
     const [qty, setQty] = useState(100);
     const [side, setSide] = useState<"YES" | "NO">("YES");
     const [msg, setMsg] = useState("");
+    const context = useContext(AuthContext);
+    if (!context) {
+        return null;
+    }
+    const { userToken } = context; 
 
-    /* REST snapshot */
+   
     useEffect(() => { api.get("/depth").then(r => setDepth(r.data)); }, []);
 
-    /* WS live feed */
+
     useEffect(() => {
-        const token = localStorage.getItem("oddsCraftToken");
+        const token = userToken;
         const ws = new WebSocket(`${WS_URL}?token=${token}`);
         ws.onmessage = e => {
             const m = JSON.parse(e.data);
@@ -49,8 +80,8 @@ export default function TradeDashboard() {
     }
 
     return (
-        <div className="grid lg:grid-cols-3 gap-4 p-4 min-h-screen bg-zinc-950 text-zinc-200 font-mono">
-            {/* Order-book */}
+        <div className="grid lg:grid-cols-3 gap-4 py-24 min-h-screen bg-zinc-950 text-zinc-200 font-mono">
+
             <Card><CardHeader><CardTitle>Order Book</CardTitle></CardHeader>
                 <CardContent className="flex justify-between text-xs">
                     <div className="flex-1">
@@ -68,7 +99,7 @@ export default function TradeDashboard() {
                 </CardContent>
             </Card>
 
-            {/* Trades */}
+         
             <Card className="overflow-y-auto max-h-[70vh]"><CardHeader><CardTitle>Trades</CardTitle></CardHeader>
                 <CardContent className="space-y-1 text-xs">
                     {trades.map(t => (
@@ -80,7 +111,7 @@ export default function TradeDashboard() {
                 </CardContent>
             </Card>
 
-            {/* Ticket */}
+      
             <Card><CardHeader><CardTitle>New Order</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                     <div className="flex space-x-2 items-end">
@@ -95,12 +126,9 @@ export default function TradeDashboard() {
                     </div>
                     <Button className="w-full" onClick={place}>Submit</Button>
                     {msg && <p className="text-xs">{msg}</p>}
-                    <Button variant="outline" className="w-full mt-2"
-                        onClick={() => { localStorage.clear(); location.reload(); }}>
-                        Logout
-                    </Button>
                 </CardContent>
             </Card>
         </div>
     );
 }
+export default withProtectedRoute(TradeDashboard)

@@ -13,5 +13,8 @@ export const orderSchema = z.object({
     qty: z.number().int().positive(),
 });
 export const cancelSchema = z.object({
-    params: z.object({ id: z.string().uuid() }),
+    params:  z.string().uuid() ,
+});
+export const balanceSchema = z.object({
+    amt: z.number().positive("Amount must be greater than zero")
 });

@@ -42,11 +42,15 @@ const Navbar = () => {
                     href="/"
                     className="flex items-center space-x-2"
                 >
-                    <div className="w-8 h-8 relative">
+                    {/* <div className="w-8 h-8 relative">
                         <div className="absolute inset-0 bg-blue-500 rounded-md rotate-45 transform -translate-x-1 translate-y-1"></div>
                         <div className="absolute inset-0 bg-purple-500 rounded-md"></div>
+                    </div> */}
+{/*                     
+                    <span className={`text-2xl font-extrabold tracking-tight ${!isScrolled? '':''}`}>OddsCraft</span> */}
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500  flex items-center justify-center shadow-md">
+                        <span className="text-white font-bold text-xl">OC</span>
                     </div>
-                    <span className={`text-2xl font-extrabold tracking-tight ${!isScrolled? 'text-white':''}`}>OddsCraft</span>
                 </Link>
 
                 <div className="hidden md:flex items-center space-x-8">

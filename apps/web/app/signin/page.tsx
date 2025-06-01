@@ -3,7 +3,7 @@
 import type React from "react"
 import { useContext, useState } from "react"
 import { useRouter } from "next/navigation"
-import {  toast } from 'react-toastify';
+import {  toast, ToastContainer } from 'react-toastify';
 import {  signinSchema } from "@repo/common";
 import Link from 'next/link';
 import {  Eye, EyeOff } from 'lucide-react';
@@ -48,32 +48,32 @@ export default function SignIn() {
                 return
             }
             setLoading(true);
-            const url = `${HTTP_BACKEND_URL}api/v1/sign-in`
-            console.log(url);
 
-            const result = await axios.post(`${HTTP_BACKEND_URL}/api/v1/sign-in`, {
+            const result = await axios.post(`${HTTP_BACKEND_URL}/api/v1/auth/signin`, {
                 email, password
             })
-            toast(result.data?.msg);
+            toast.success(result.data?.msg);
             setTimeout(() => {
                 
                 setLoading(false);
-               
+                if (result.data?.token){
+                    localStorage.setItem("oddsCraftToken", result.data?.token)
+                    setLogin(true);
+                    router.push('/dashboard')
+                }
             }, 1500);
-            if (result.data?.token){
-                localStorage.setItem("shapeSmithToken", result.data?.token)
-                setLogin(true);
-                router.push('/home')
-            }
             
         } catch (error) {
             console.log(error);
-            toast("Oops Something went wrong!");
+            if (axios.isAxiosError(error)) {
+                const message = error.response?.data?.error || error.message || "Oops! Something went wrong.";
+                toast.error(message);
+            } else {
+                toast("An unexpected error occurred.");
+            }
+            setLoading(false)
         }
         
-        
-        
-       
         
     }
 
@@ -195,6 +195,7 @@ export default function SignIn() {
                     </div>
                 </div>
             </div>
+            <ToastContainer/>
         </div>
     )
 }

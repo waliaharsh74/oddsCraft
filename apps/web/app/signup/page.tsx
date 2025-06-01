@@ -16,15 +16,13 @@ import axios from "axios"
 import { HTTP_BACKEND_URL } from "../config"
 
 interface signUpError {
-    firstName?: string[] | undefined;
-    lastName?: string[] | undefined;
+    
     email?: string[] | undefined;
     password?: string[] | undefined;
 }
 
 export default function SignUp() {
-    const [firstName, setFirstName] = useState("")
-    const [lastName, setLastName] = useState("")
+   
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [err, setErr] = useState<signUpError>({})
@@ -38,7 +36,7 @@ export default function SignUp() {
         e.preventDefault()
         try {
             const parsedData = signupSchema.safeParse({
-                email, password, firstName, lastName
+                email, password
             })
             if (parsedData.error) {
                 setErr(parsedData.error.flatten().fieldErrors)
@@ -46,21 +44,26 @@ export default function SignUp() {
             }
             setLoading(true);
 
-            const result = await axios.post(`${HTTP_BACKEND_URL}/api/v1/sign-up`, {
-                firstName, lastName, email, password
+            const result = await axios.post(`${HTTP_BACKEND_URL}/api/v1/auth/signup`, {
+                email, password
             })
-            toast(result.data?.msg);
+            toast.success(result.data?.msg);
             setTimeout(() => {
-               
                 setLoading(false);
+                if (result.data?.id) {
+                    router.push("/signin")
+                }
             }, 1500);
-            if (result.data?.id) {
-                router.push("/signin")
-            }
 
         } catch (error) {
             console.log(error);
-            toast("Oops Something went wrong!");
+            setLoading(false)
+            if (axios.isAxiosError(error)) {
+                const message = error.response?.data?.error || error.message || "Oops! Something went wrong.";
+                toast.error(message);
+            } else {
+                toast("An unexpected error occurred.");
+            }
         }
 
 
@@ -81,41 +84,10 @@ export default function SignUp() {
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="space-y-4">
+                          
                             <div className="space-y-2">
-                                <Label htmlFor="firstName" >
-                                    First Name
-                                </Label>
-                                <Input
-                                    type="text"
-                                    id="firstName"
-                                    value={firstName}
-                                    placeholder="Enter your first name"
-
-                                    onChange={(e) => setFirstName(e.target.value)}
-                                    required
-
-                                />
-                                {err && err?.firstName && <div className="">{err?.firstName[0]}</div>}
-                            </div>
-                            <div className="space-y-4">
-                                <Label htmlFor="lastName" >
-                                    Last Name
-                                </Label>
-                                <Input
-                                    type="text"
-                                    id="lastName"
-                                    value={lastName}
-                                    placeholder="Enter your last name"
-
-                                    onChange={(e) => setLastName(e.target.value)}
-                                    required
-
-                                />
-                                {err && err?.lastName && <div className="">{err?.lastName[0]}</div>}
-                            </div>
-                            <div className="space-y-4">
                                 <Label htmlFor="email" >
-                                    Email
+                                    Email address
                                 </Label>
                                 <Input
                                     type="email"
@@ -128,7 +100,7 @@ export default function SignUp() {
                                 />
                                 {err && err?.email && <div className="">{err?.email[0]}</div>}
                             </div>
-                            <div className="space-y-4">
+                            <div className="space-y-2">
                                 <div className="flex items-center justify-between">
                                     <Label htmlFor="password">Password</Label>
 

@@ -1,4 +1,3 @@
-// withProtectedRoute.tsx
 import { useContext, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AuthContext } from "./AuthContext";

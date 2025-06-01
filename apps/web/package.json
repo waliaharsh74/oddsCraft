@@ -40,6 +40,7 @@
   "devDependencies": {
     "@repo/common": "workspace:*",
     "@repo/eslint-config": "workspace:*",
+    "@repo/db":"workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^22.15.3",
     "@types/react": "19.1.0",
