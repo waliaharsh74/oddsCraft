@@ -4,7 +4,7 @@ import Redis from 'ioredis';
 import { Response } from "express";
 import rateLimit from "express-rate-limit"
 import { randomUUID } from "crypto";
-import { Side, TradeMsg, OrderBook, signupSchema, signinSchema, cancelSchema, orderSchema, balanceSchema } from "@repo/common"
+import { Side, TradeMsg, OrderBook, signupSchema, signinSchema, cancelSchema, orderSchema, balanceSchema ,eventCreateSchema,eventUpdateSchema} from "@repo/common"
 import bcrypt from "bcryptjs"
 
 import { EventEmitter } from 'events';
@@ -21,6 +21,7 @@ function publish(channel: string, payload: unknown) {
 
 bus.on('trade', (trades: TradeMsg[]) => publish('trade', trades));
 bus.on('depth', (d: any) => publish('depth', d));
+
 router.use(
     rateLimit({
         windowMs: 15 * 60_000,
@@ -52,7 +53,6 @@ router.post("/auth/signup", async (req, res) => {
     }
 
 });
-
 router.post("/auth/signin", async (req, res) => {
     try {
         const result = signinSchema.safeParse(req.body);
@@ -71,7 +71,9 @@ router.post("/auth/signin", async (req, res) => {
         console.log(error);
     }
 });
+
 router.use(auth);
+
 router.post("/orders",  async (req: AuthRequest, res) => {
     
     try {
@@ -80,7 +82,7 @@ router.post("/orders",  async (req: AuthRequest, res) => {
             res.status(400).json({ error: parsed.error.flatten() })
             return
         };
-        const { side, price, qty } = req.body as { side: Side; price: number; qty: number };
+        const { side, price, qty, eventId } = req.body as { side: Side; price: number; qty: number, eventId :string};
         const userId = req.userId as string;
     
         const stakePaise = Math.round(price * 100) * qty;
@@ -104,6 +106,7 @@ router.post("/orders",  async (req: AuthRequest, res) => {
                     qty,
                     openQty: qty,
                     status: "OPEN",
+                    eventId
                 },
             });
 
@@ -226,8 +229,6 @@ router.post("/wallet/topup",  async (req: AuthRequest, res) => {
         res.status(500).json({ error: "server error!" });
     }
 });
-
-
 router.delete("/orders/:id", async (req: AuthRequest, res) => {
     try {
         const result = cancelSchema.safeParse({params:req?.params});
@@ -265,13 +266,27 @@ router.delete("/orders/:id", async (req: AuthRequest, res) => {
 router.get("/depth", (_req, res) => {
     res.json({ bids: book.depth("YES"), asks: book.depth("NO") });
 });
-
-
 router.get("/probability", (_req, res) => {
     const bestBid = book.depth("YES")[0]?.price ?? 0;
     const bestAsk = book.depth("NO")[0]?.price ?? 10;
     const mid = (bestBid + bestAsk) / 2;
     res.json({ probability: mid / 10 });
+});
+
+// router.use('/admin')
+router.post('/event', async (req, res) => {
+    const ev = await prisma.event.create({ data: req.body });
+    res.json(ev);
+});
+
+router.get('/event', async (_req, res) => {
+    const events = await prisma.event.findMany();
+    res.json(events);
+});
+
+router.patch('/event/:id', async (req, res) => {
+    const ev = await prisma.event.update({ where: { id: req.params.id }, data: req.body });
+    res.json(ev);
 });
 
 export default router

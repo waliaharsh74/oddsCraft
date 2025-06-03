@@ -47,6 +47,8 @@ model Order {
   createdAt  DateTime    @default(now())
 
   user User @relation("UserOrders", fields: [userId], references: [id])
+  event Event @relation("EventOrders",fields: [eventId],references: [id])
+  eventId String
 
   makerTrades     Trade[] @relation("MakerOrder")
   aggressorTrades Trade[] @relation("AggressorOrder")
@@ -72,4 +74,24 @@ model Trade {
 
   @@index([makerId])
   @@index([takerId])
+}
+enum EventStatus { 
+  OPEN 
+  CLOSED 
+  SETTLED
+}
+
+
+model Event {
+  id          String      @id @default(uuid())
+  title       String
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime
+  status      EventStatus @default(OPEN)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  orders      Order[]     @relation("EventOrders")
+
+  @@index([status, endsAt])
 }
