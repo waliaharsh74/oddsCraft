@@ -5,54 +5,53 @@ import { Card, CardHeader, CardTitle, CardContent } from '@repo/ui/components/ca
 import { Button } from '@repo/ui/components/button';
 import { Input } from '@repo/ui/components/input';
 import axios from 'axios';
-import { AuthContext } from '@/app/context/AuthContext';
 
 type Event = { id: string; title: string; endsAt: string; status: 'OPEN' | 'CLOSED' | 'SETTLED' };
 
 const formSchema = z.object({
     title: z.string().min(5),
-    endsAt: z.string().datetime(),          
+    endsAt: z.string().datetime(),
 });
 
 export default function AdminEvents() {
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-    const api = axios.create({ baseURL: `${API_BASE}/api/v1` });
-
-    function setToken() {
-        const context = useContext(AuthContext);
-        if (!context) {
-            return null;
-        }
-        const { userToken } = context;
-        const token = userToken
-        if (token) {
-
-            api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-        } else {
-
-
-            delete api.defaults.headers.common["Authorization"];
-        }
-    }
-
-    setToken();
     const [events, setEvents] = useState<Event[]>([]);
     const [form, setForm] = useState({ title: '', endsAt: '' });
     const [msg, setMsg] = useState('');
+    const [token,setToken]=useState<string|null>(null);
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-    /* fetch table */
-    useEffect(() => { api.get('/admin/events').then(r => setEvents(r.data)); }, []);
+    useEffect(() => {
+        const fetchData=async()=>{
+            const {data}=await axios.get(`${API_BASE}/api/v1/admin/event`,{
+                headers:{
+                    Authorization: `Bearer ${userToken}`
+                }
+            })
+            setEvents(data)
+        }
+        const userToken=localStorage.getItem('oddsCraftToken')
+        setToken(userToken)
+        fetchData()
+    },[]);
 
     async function create() {
-        const ok = formSchema.safeParse(form);
-        if (!ok.success) { setMsg('fill both fields'); return; }
-        const { data } = await api.post('/admin/events', { ...form, endsAt: new Date(form.endsAt) });
+        // const ok = formSchema.safeParse(form);
+        // if (!ok.success) { setMsg('fill both fields'); return; }
+        const { data } = await axios.post(`${ API_BASE }/api/v1/admin/event`, { ...form, endsAt: new Date(form.endsAt) }, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
         setEvents(e => [data, ...e]); setForm({ title: '', endsAt: '' });
     }
 
     async function close(id: string) {
-        await api.patch(`/admin/events/${id}`, { status: 'CLOSED' });
+        await axios.patch(`${ API_BASE }/api/v1/admin/event/${id}`, { status: 'CLOSED' }, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
         setEvents(e => e.map(ev => ev.id === id ? { ...ev, status: 'CLOSED' } : ev));
     }
 

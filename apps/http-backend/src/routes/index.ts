@@ -273,18 +273,18 @@ router.get("/probability", (_req, res) => {
     res.json({ probability: mid / 10 });
 });
 
-// router.use('/admin')
-router.post('/event', async (req, res) => {
+// router.use('/admin/')
+router.post('/admin/event', async (req, res) => {
     const ev = await prisma.event.create({ data: req.body });
     res.json(ev);
 });
 
-router.get('/event', async (_req, res) => {
+router.get('/admin/event', async (_req, res) => {
     const events = await prisma.event.findMany();
     res.json(events);
 });
 
-router.patch('/event/:id', async (req, res) => {
+router.patch('/admin/event/:id', async (req, res) => {
     const ev = await prisma.event.update({ where: { id: req.params.id }, data: req.body });
     res.json(ev);
 });
