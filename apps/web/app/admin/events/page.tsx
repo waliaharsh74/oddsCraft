@@ -47,7 +47,7 @@ export default function AdminEvents() {
     }
 
     async function close(id: string) {
-        await axios.patch(`${ API_BASE }/api/v1/admin/event/${id}`, { status: 'CLOSED' }, {
+        await axios.post(`${ API_BASE }/api/v1/admin/event/${id}`, { status: 'CLOSED' }, {
             headers: {
                 Authorization: `Bearer ${token}`
             }
@@ -56,9 +56,9 @@ export default function AdminEvents() {
     }
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="px-6 py-24 space-y-6">
             {/* Create */}
-            <Card className="max-w-xl">
+            <Card className="max-w-xl p-4">
                 <CardHeader><CardTitle>Create Event</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                     <Input placeholder="Title" value={form.title}
@@ -71,7 +71,7 @@ export default function AdminEvents() {
             </Card>
 
             {/* Table */}
-            <Card>
+            <Card className='p-4'>
                 <CardHeader><CardTitle>Events</CardTitle></CardHeader>
                 <CardContent className="overflow-x-auto">
                     <table className="w-full text-sm">

@@ -275,7 +275,12 @@ router.get("/probability", (_req, res) => {
 
 // router.use('/admin/')
 router.post('/admin/event', async (req, res) => {
-    const ev = await prisma.event.create({ data: req.body });
+    const parsed=eventCreateSchema.safeParse(req.body)
+    if(!parsed.success){
+        res.status(400).json({ error: parsed.error.flatten() })
+        return
+    }
+    const ev = await prisma.event.create({ data: parsed.data });
     res.json(ev);
 });
 
@@ -284,8 +289,13 @@ router.get('/admin/event', async (_req, res) => {
     res.json(events);
 });
 
-router.patch('/admin/event/:id', async (req, res) => {
-    const ev = await prisma.event.update({ where: { id: req.params.id }, data: req.body });
+router.post('/admin/event/:id', async (req, res) => {
+    const parsed = eventUpdateSchema.safeParse(req.body)
+    if (!parsed.success) {
+        res.status(400).json({ error: parsed.error.flatten() })
+        return
+    }
+    const ev = await prisma.event.update({ where: { id: req.params.id }, data: {status:parsed.data.status}});
     res.json(ev);
 });
 
