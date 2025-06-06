@@ -21,45 +21,38 @@ const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8081";
 function TradeDashboard() {
      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-    const api = axios.create({ baseURL: `${API_BASE}/api/v1` });
-
-     function setToken() {
-        const context = useContext(AuthContext);
-        if (!context) {
-            return null;
-        }
-        const { userToken } = context;
-        const token = userToken
-        if (token) {
-            
-            api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-        } else {
-            
-            
-            delete api.defaults.headers.common["Authorization"];
-        }
-    }
-
-    setToken();
-   
     const [depth, setDepth] = useState<Depth>({ bids: [], asks: [] });
     const [trades, setTrades] = useState<Trade[]>([]);
     const [price, setPrice] = useState(7.5);
     const [qty, setQty] = useState(100);
     const [side, setSide] = useState<"YES" | "NO">("YES");
     const [msg, setMsg] = useState("");
-    const context = useContext(AuthContext);
-    if (!context) {
-        return null;
-    }
-    const { userToken } = context; 
+    const [token, setToken] = useState<string | null>(null);
 
    
-    useEffect(() => { api.get("/depth").then(r => setDepth(r.data)); }, []);
+
+    useEffect(() => {
+
+        const localToken = localStorage.getItem('oddsCraftToken');
+        setToken(localToken);
+    }, []);
+    useEffect(() => { 
+        const fetchData=async()=>{
+            if(!token)return
+
+            const { data } = await axios.get(`${API_BASE}/api/v1/depth`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }})
+            setDepth(data)
+        }
+        fetchData()
+
+     }, [token]);
 
 
     useEffect(() => {
-        const token = userToken;
+     
         const ws = new WebSocket(`${WS_URL}?token=${token}`);
         ws.onmessage = e => {
             const m = JSON.parse(e.data);
@@ -72,7 +65,11 @@ function TradeDashboard() {
     async function place() {
         setMsg("posting…");
         try {
-            await api.post("/orders", { side, price: Number(price), qty: Number(qty) });
+            await axios.post(`${API_BASE}/api/v1/orders`, { side, price: Number(price), qty: Number(qty) },{
+                headers:{
+                    Authorization: `Bearer ${token}`
+                }
+            });
             setMsg("✅ placed");
         } catch (e: any) {
             setMsg(`❌ ${e.response?.data?.error || "err"}`);

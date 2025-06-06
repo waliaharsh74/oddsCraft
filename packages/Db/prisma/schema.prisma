@@ -16,6 +16,7 @@ datasource db {
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
+  role         Role  @default(MEMBER)
   passwordHash String
   balancePaise BigInt   @default(0)
   createdAt    DateTime @default(now())
@@ -34,6 +35,10 @@ enum OrderStatus {
   OPEN
   FILLED
   CANCELLED
+}
+enum Role {
+  ADMIN
+  MEMBER
 }
 
 model Order {

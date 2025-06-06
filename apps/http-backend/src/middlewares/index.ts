@@ -11,11 +11,22 @@ export const auth = (req: AuthRequest, res: Response, next: NextFunction) => {
         return
     }
     try {
-        const { uid } = jwt.verify(h.slice(7), JWT_SECRET) as { uid: string };
-        req.userId = uid;
+        const {uid} = jwt.verify(h.slice(7), JWT_SECRET) as {uid:string};
+        const parsed=JSON.parse(uid)
+        req.userId = parsed.id;
+        req.role = parsed.role;
         next();
     } catch { res.status(401).json({ error: "auth" }); return }
 };
+export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+        if (req.role !== 'ADMIN') { res.status(403).json({ error: 'forbidden' }); return }
+        next();
+    } catch (error) {
+        res.status(500).json({ error: "Internal Server Error" }); return
+    }
 
+
+  }
 
 export const sign = (uid: string) => jwt.sign({ uid }, JWT_SECRET, { expiresIn: "7d" });

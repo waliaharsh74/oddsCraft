@@ -8,7 +8,7 @@ import { Side, TradeMsg, OrderBook, signupSchema, signinSchema, cancelSchema, or
 import bcrypt from "bcryptjs"
 
 import { EventEmitter } from 'events';
-import {  sign, auth } from "../middlewares";
+import {  sign, auth, requireAdmin } from "../middlewares";
 import { AuthRequest } from "../interfaces";
 const router: Router = express.Router()
 const book = new OrderBook();
@@ -63,8 +63,13 @@ router.post("/auth/signin", async (req, res) => {
         const { email, password } = req.body;
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user || !(await bcrypt.compare(password, user.passwordHash))) { res.status(401).json({ error: "Invalid Credentials" }); return }
+        const data={
+            id:user.id,
+            role:user.role
+        }
+        const toSignString=JSON.stringify(data)
         res.json({
-            token: sign(user.id),
+            token: sign(toSignString),
             msg: "Welcome Back!"
         });
     } catch (error) {
@@ -273,7 +278,8 @@ router.get("/probability", (_req, res) => {
     res.json({ probability: mid / 10 });
 });
 
-// router.use('/admin/')
+router.use(requireAdmin)
+
 router.post('/admin/event', async (req, res) => {
     const parsed=eventCreateSchema.safeParse(req.body)
     if(!parsed.success){

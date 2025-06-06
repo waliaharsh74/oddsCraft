@@ -56,8 +56,9 @@ export default function AdminEvents() {
     }
 
     return (
-        <div className="px-6 py-24 space-y-6">
-            {/* Create */}
+        <div className="px-6 text-white py-32 space-y-6 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-800">
+            <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse"></div>
+            <div className="absolute -bottom-32 -right-32 w-[28rem] h-[28rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse"></div>
             <Card className="max-w-xl p-4">
                 <CardHeader><CardTitle>Create Event</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -70,7 +71,6 @@ export default function AdminEvents() {
                 </CardContent>
             </Card>
 
-            {/* Table */}
             <Card className='p-4'>
                 <CardHeader><CardTitle>Events</CardTitle></CardHeader>
                 <CardContent className="overflow-x-auto">
@@ -86,7 +86,9 @@ export default function AdminEvents() {
                                     <td className="p-2">{ev.status}</td>
                                     <td className="p-2">
                                         {ev.status === 'OPEN' &&
-                                            <Button size="sm" variant="outline" onClick={() => close(ev.id)}>Close</Button>}
+                                            <Button size="sm" variant="outline"
+                                            className=''
+                                             onClick={() => close(ev.id)}>Close</Button>}
                                     </td>
                                 </tr>
                             ))}
