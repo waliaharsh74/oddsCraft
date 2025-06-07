@@ -1,6 +1,6 @@
 import type { Side, OrderInMem, TradeMsg } from "./types"
 import { OrderBook, BookLevel } from "./classes"
-import { signupSchema, signinSchema, cancelSchema, orderSchema,balanceSchema,eventCreateSchema,eventUpdateSchema } from "./zodSchema"
+import { signupSchema, signinSchema, cancelSchema, orderSchema, balanceSchema, eventCreateSchema, eventUpdateSchema, EventSchema } from "./zodSchema"
 export {
     Side,
     OrderInMem,
@@ -13,6 +13,7 @@ export {
     orderSchema,
     balanceSchema,
     eventCreateSchema,
-    eventUpdateSchema
+    eventUpdateSchema,
+    EventSchema
 
 }

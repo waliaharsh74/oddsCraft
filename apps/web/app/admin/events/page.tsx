@@ -47,6 +47,7 @@ export default function AdminEvents() {
     }
 
     async function close(id: string) {
+        console.log("object");
         await axios.post(`${ API_BASE }/api/v1/admin/event/${id}`, { status: 'CLOSED' }, {
             headers: {
                 Authorization: `Bearer ${token}`
@@ -57,14 +58,14 @@ export default function AdminEvents() {
 
     return (
         <div className="px-6 text-white py-32 space-y-6 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-800">
-            <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse"></div>
-            <div className="absolute -bottom-32 -right-32 w-[28rem] h-[28rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse"></div>
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse"></div>
+            <div className="absolute -bottom-32 -right-32 w-[12rem] h-[12rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse"></div>
             <Card className="max-w-xl p-4">
                 <CardHeader><CardTitle>Create Event</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
-                    <Input placeholder="Title" value={form.title}
+                    <Input className='text-black' placeholder="Title" value={form.title}
                         onChange={e => setForm({ ...form, title: e.target.value })} />
-                    <Input type="datetime-local" value={form.endsAt}
+                    <Input className='text-black' type="datetime-local" value={form.endsAt}
                         onChange={e => setForm({ ...form, endsAt: e.target.value })} />
                     <Button onClick={create}>Create</Button>
                     {msg && <p className="text-xs">{msg}</p>}
@@ -86,8 +87,8 @@ export default function AdminEvents() {
                                     <td className="p-2">{ev.status}</td>
                                     <td className="p-2">
                                         {ev.status === 'OPEN' &&
-                                            <Button size="sm" variant="outline"
-                                            className=''
+                                            <Button size="sm" className='text-black' variant="outline"
+                                           
                                              onClick={() => close(ev.id)}>Close</Button>}
                                     </td>
                                 </tr>

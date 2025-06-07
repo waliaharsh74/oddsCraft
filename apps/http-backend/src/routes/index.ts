@@ -4,7 +4,7 @@ import Redis from 'ioredis';
 import { Response } from "express";
 import rateLimit from "express-rate-limit"
 import { randomUUID } from "crypto";
-import { Side, TradeMsg, OrderBook, signupSchema, signinSchema, cancelSchema, orderSchema, balanceSchema ,eventCreateSchema,eventUpdateSchema} from "@repo/common"
+import { Side, TradeMsg, OrderBook, signupSchema, signinSchema, cancelSchema, orderSchema, balanceSchema, eventCreateSchema, eventUpdateSchema, EventSchema } from "@repo/common"
 import bcrypt from "bcryptjs"
 
 import { EventEmitter } from 'events';
@@ -78,6 +78,27 @@ router.post("/auth/signin", async (req, res) => {
 });
 
 router.use(auth);
+router.get('/events', async (req, res) => {
+    try {
+        const parsed = EventSchema.safeParse(req.query)
+        if (!parsed.success) {
+            res.status(400).json({ error: parsed.error.flatten() })
+            return
+        }
+        
+        const events = await prisma.event.findMany({
+            where: {
+                ...parsed.data
+            }
+        });
+        res.json(events);
+    } catch (error) {
+        res.status(500).json({
+            error:"Internal Server Error!"
+        })
+    }
+  
+});
 
 router.post("/orders",  async (req: AuthRequest, res) => {
     

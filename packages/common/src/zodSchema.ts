@@ -32,3 +32,10 @@ export const eventUpdateSchema = z.object({
     endsAt: z.coerce.date().optional(),
     status: z.enum(['OPEN', 'CLOSED', 'SETTLED']).optional(),
 });
+export const EventStatusEnum = z.enum(['OPEN', 'CLOSED', 'SETTLED']);
+export const EventSchema = z.object({
+    title: z.string().optional(),
+    description: z.string().optional(),
+    status: EventStatusEnum.optional(),
+});
+  
