@@ -11,7 +11,8 @@ export const orderSchema = z.object({
     side: z.enum(["YES", "NO"]).transform((v) => v as Side),
     price: z.number().min(0).max(10),
     qty: z.number().int().positive(),
-    eventId:z.string().uuid()
+    eventId:z.string().uuid(),
+    isExit: z.boolean().default(false)
 });
 export const cancelSchema = z.object({
     params:  z.string().uuid() ,
@@ -34,6 +35,7 @@ export const eventUpdateSchema = z.object({
 });
 export const EventStatusEnum = z.enum(['OPEN', 'CLOSED', 'SETTLED']);
 export const EventSchema = z.object({
+    id:z.string().uuid().optional(),
     title: z.string().optional(),
     description: z.string().optional(),
     status: EventStatusEnum.optional(),

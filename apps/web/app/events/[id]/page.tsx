@@ -13,7 +13,7 @@ import { withProtectedRoute } from '@/app/context/withProtectedRoute';
 interface DepthRow { price: number; qty: number; }
 interface Depth { bids: DepthRow[]; asks: DepthRow[]; }
 interface Trade { tradeId: string; side: 'YES' | 'NO'; price: number; qty: number; ts: number; }
-interface EventMeta { title: string; endsAt: string; }
+interface EventMeta {id:string, title: string; endsAt: string; }
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const WSS = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8081';
@@ -24,7 +24,7 @@ function TradeDashboard() {
 
     const [depth, setDepth] = useState<Depth>({ bids: [], asks: [] });
     const [trades, setTrades] = useState<Trade[]>([]);
-    const [event, setEvent] = useState<EventMeta | null>(null);
+    const [event, setEvent] = useState<EventMeta | null|undefined>(null);
 
 
     const [side, setSide] = useState<'YES' | 'NO'>('YES');
@@ -40,10 +40,15 @@ function TradeDashboard() {
             try {
                 const headers = { Authorization: `Bearer ${token}` };
                 const [meta, book] = await Promise.all([
-                    axios.get<EventMeta>(`${API}/events/${eventId}`, { headers }),
-                    axios.get<Depth>(`${API}/depth?eventId=${eventId}`, { headers }),
+                    axios.get<EventMeta[]>(`${API}/api/v1/events?id=${eventId}`, { headers }),
+                    axios.get<Depth>(`${API}/api/v1/depth?eventId=${eventId}`, { headers }),
                 ]);
-                setEvent(meta.data);
+                console.log("meta",meta);
+                console.log("meta2",book);
+                if(meta.data.length>0){
+
+                    setEvent(meta.data[0]);
+                }
                 setDepth(book.data);
             } catch (err: any) {
                 setMsg(err.response?.data?.error || 'server');
@@ -72,7 +77,7 @@ function TradeDashboard() {
         setMsg('posting…');
         try {
             const headers = { Authorization: `Bearer ${token}` };
-            await axios.post(`${API}/orders`,
+            await axios.post(`${API}/api/v1/orders`,
                 { eventId, side, price: +price, qty: +qty },
                 { headers }
             );

@@ -37,61 +37,57 @@ export class OrderBook extends EventEmitter {
 
     addOrder(o: OrderInMem): TradeMsg[] {
         assertValid(o.price, o.qty);
+        if (o.isExit) {                     
+            this.addLevel(o.side === 'YES' ? this.bids : this.asks, o);
+            this.emitDepth();                 
+            return [];
+        }
 
-    
-        const price = roundToTick(o.price);
-        o = { ...o, price };
+        o = { ...o, price: roundToTick(o.price) };
 
+        const oppPrice = Number((10 - o.price).toFixed(1));   
+        const myMap = o.side === 'YES' ? this.bids : this.asks;
+        const oppMap = o.side === 'YES' ? this.asks : this.bids;
+        const lvl = oppMap.get(oppPrice);
         const trades: TradeMsg[] = [];
-        const isBuy = o.side === "YES";
-
-        const myMap = isBuy ? this.bids : this.asks;
-        const oppMap = isBuy ? this.asks : this.bids;
-        const better = isBuy ? (p: number) => p <= price : (p: number) => p >= price;
 
         let remaining = o.qty;
 
-        while (remaining > 0) {
-            const matchPrice = this.bestPrice(oppMap, better);
-            if (matchPrice === undefined) break;
-            const lvl = oppMap.get(matchPrice)!;
+        while (remaining && lvl?.orders.length) {
+            const maker = lvl.orders[0]!;
+            const fill = Math.min(remaining, maker.qty);
 
-            
-            while (remaining && lvl.orders.length) {
-                const maker = lvl.orders[0]!;
-                const fillQty = Math.min(remaining, maker.qty);
+            maker.qty -= fill;
+            remaining -= fill;
 
-                maker.qty -= fillQty;
-                remaining -= fillQty;
+            trades.push({
+                tradeId: randomUUID(),
+                side: o.side,
+                price: o.price,
+                qty: fill,
+                taker: o.userId,
+                maker: maker.userId,
+                makerOrderId: maker.id,
+                remainingMakerQty: maker.qty,
+                ts: Date.now(),
+            });
 
-                trades.push({
-                    tradeId: randomUUID(),
-                    side: o.side,
-                    price: matchPrice,
-                    qty: fillQty,
-                    taker: o.userId,
-                    maker: maker.userId,
-                    makerOrderId: maker.id,
-                    remainingMakerQty: maker.qty,
-                    ts: Date.now(),
-                });
-
-                if (maker.qty === 0) lvl.orders.shift();
-            }
-
-            if (lvl.orders.length === 0) oppMap.delete(matchPrice);
+            if (maker.qty === 0) lvl.orders.shift();
         }
 
-        if (remaining > 0) {
-            this.addLevel(myMap, { ...o, qty: remaining });
-            this.prune(myMap);
-        }
+        if (lvl && lvl.orders.length === 0) oppMap.delete(oppPrice);
 
-        if (trades.length) this.emit("trade", trades);
-        this.emit("depth", { bids: this.depth("YES"), asks: this.depth("NO") });
+        if (remaining) this.addLevel(myMap, { ...o, qty: remaining });
 
+        if (trades.length) this.emit('trade', trades);
+        this.emitDepth();
         return trades;
     }
+
+    private emitDepth() {
+        this.emit('depth', { bids: this.depth('YES'), asks: this.depth('NO') });
+    }
+      
 
     cancel(id: string): boolean {
         for (const map of [this.bids, this.asks]) {

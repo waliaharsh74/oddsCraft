@@ -7,6 +7,7 @@ export type OrderInMem = {
     price: number; 
     qty: number;   
     createdAt: number; 
+    isExit?: boolean;
 };
 
 export type TradeMsg = {
