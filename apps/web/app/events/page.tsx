@@ -40,8 +40,8 @@ export default function OpenEventsPage() {
     }, []);
 
     return (
-        <div className="p-6 space-y-6 min-h-screen bg-zinc-950 text-zinc-200">
-            <Card className="bg-zinc-900/60 ring-1 ring-zinc-700">
+        <div className="p-6 space-y-6 min-h-screen bg-zinc-950 text-zinc-200 py-24">
+            <Card className="bg-zinc-900/60 ring-1 ring-zinc-700 p-2">
                 <CardHeader>
                     <CardTitle className="text-xl">Open Events</CardTitle>
                 </CardHeader>

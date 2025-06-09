@@ -59,7 +59,7 @@ export default function SignIn() {
                 if (result.data?.token){
                     localStorage.setItem("oddsCraftToken", result.data?.token)
                     setLogin(true);
-                    router.push('/dashboard')
+                    router.push('/events')
                 }
             }, 1500);
             

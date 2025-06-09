@@ -74,14 +74,18 @@ function UserWalletCard() {
         const amt = Number(custom);
         const valid = amountSchema.safeParse(amt);
         if (!valid.success) {
-            setMsg('enter 10 – 10 000');
+            setMsg('enter amount between 10 – 10 000');
             return;
         }
         topUp(amt);
     }
 
     return (
-        <Card className="bg-zinc-900/60 ring-1 py-24 ring-zinc-700">
+        <div className="px-6 text-white py-32 space-y-6 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-800 h-screen">
+
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse"></div>
+            <div className="absolute -bottom-6 -right-32 w-[12rem] h-[12rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse"></div>
+            <Card className="max-w-xl p-4 mx-auto">
             <CardHeader>
                 <CardTitle className="text-xl">Wallet</CardTitle>
             </CardHeader>
@@ -93,7 +97,7 @@ function UserWalletCard() {
 
                 <div className="flex gap-3">
                     {QUICK.map(v => (
-                        <Button key={v} variant="outline" className="flex-1"
+                        <Button key={v} variant="outline" className="flex-1 text-black"
                             onClick={() => topUp(v)}>
                             +₹{v}
                         </Button>
@@ -105,17 +109,18 @@ function UserWalletCard() {
                         type="number"
                         value={custom}
                         onChange={e => setCustom(e.target.value)}
-                        className="flex-1" />
+                        className="flex-1 text-black" />
                     <Button onClick={submitCustom}>Add</Button>
                 </div>
 
                 {msg && <p className="text-xs text-zinc-400">{msg}</p>}
             </CardContent>
 
-            <CardFooter className="text-xs text-zinc-500">
+            <CardFooter className="text-xs text-zinc-500 p-2">
                 Funds are demo rupees. Top-ups are instant for testing.
             </CardFooter>
         </Card>
+        </div>
     );
 }
 export default withProtectedRoute(UserWalletCard)

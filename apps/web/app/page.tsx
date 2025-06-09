@@ -30,7 +30,7 @@ export default function LandingPage() {
             Bet on live events with lightning‑fast order‑books, dynamic pricing, and transparent odds.
           </p>
           <div className="mt-8 flex justify-center lg:justify-start gap-4">
-            <Link href="/dashboard"><Button size="lg" className='hover:cursor-pointer'>Start Trading</Button></Link>
+            <Link href="/events"><Button size="lg" className='hover:cursor-pointer'>Start Trading</Button></Link>
             <Link href="/user"><Button variant="outline" size="lg" className='hover:cursor-pointer'>Wallet Top Up</Button></Link>
           </div>
         </div>

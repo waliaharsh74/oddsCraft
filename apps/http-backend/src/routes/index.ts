@@ -41,12 +41,12 @@ function publish(channel: string, payload: unknown) {
 bus.on('trade', (trades: TradeMsg[]) => publish('trade', trades));
 bus.on('depth', (d: any) => publish('depth', d));
 
-router.use(
-    rateLimit({
-        windowMs: 15 * 60_000,
-        max: 60,
-    })
-)
+// router.use(
+//     rateLimit({
+//         windowMs: 15 * 60_000,
+//         max: 60,
+//     })
+// )
 router.get("/hello", async (req, res) => {
     res.json({ msg: "hello" });
 
