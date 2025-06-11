@@ -10,11 +10,12 @@ import { Input } from '@repo/ui/components/input';
 import { Button } from '@repo/ui/components/button';
 import { withProtectedRoute } from '@/app/context/withProtectedRoute';
 import DepthTable from '@/app/components/DepthTable';
+import { Minus, Plus } from 'lucide-react';
 
 interface DepthRow { price: number; qty: number; }
 interface Depth { bids: DepthRow[]; asks: DepthRow[]; }
 interface Trade { tradeId: string; side: 'YES' | 'NO'; price: number; qty: number; ts: number; }
-interface EventMeta {id:string, title: string; endsAt: string; }
+interface EventMeta { id: string, title: string; endsAt: string; }
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const WSS = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8081';
@@ -25,7 +26,7 @@ function TradeDashboard() {
 
     const [depth, setDepth] = useState<Depth>({ bids: [], asks: [] });
     const [trades, setTrades] = useState<Trade[]>([]);
-    const [event, setEvent] = useState<EventMeta | null|undefined>(null);
+    const [event, setEvent] = useState<EventMeta | null | undefined>(null);
 
 
     const [side, setSide] = useState<'YES' | 'NO'>('YES');
@@ -44,9 +45,9 @@ function TradeDashboard() {
                     axios.get<EventMeta[]>(`${API}/api/v1/events?id=${eventId}`, { headers }),
                     axios.get<Depth>(`${API}/api/v1/depth?eventId=${eventId}`, { headers }),
                 ]);
-                console.log("meta",meta);
-                console.log("meta2",book);
-                if(meta.data.length>0){
+                console.log("meta", meta);
+                console.log("meta2", book);
+                if (meta.data.length > 0) {
 
                     setEvent(meta.data[0]);
                 }
@@ -59,7 +60,7 @@ function TradeDashboard() {
         fetchInitial();
     }, [token, eventId]);
 
-    
+
     useEffect(() => {
         if (!token || !eventId) return;
 
@@ -88,7 +89,7 @@ function TradeDashboard() {
         }
     }
 
-    
+
     return (
         <div className="grid lg:grid-cols-3 gap-4 py-24 min-h-screen bg-zinc-950 text-zinc-200 font-mono">
             <div className="absolute -top-40 -left-40 w-80 h-80 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse"></div>
@@ -104,25 +105,25 @@ function TradeDashboard() {
                 </CardHeader>
                 <CardContent className="flex justify-between text-xs">
                     <div className="flex-1 mr-2">
-                    <div className="flex justify-between">
-                        <span>Price</span>
-                        <span>Qty</span>
-                    </div>
+                        <div className="flex justify-between">
+                            <span>Price</span>
+                            <span>Qty(Yes)</span>
+                        </div>
                         {depth.asks.map((r) => (
-                            <div key={`ask-${r.price}`} className="flex justify-between text-red-400">
-                                <span>{r.price.toFixed(1)}</span><span>{r.qty}</span>
+                            <div key={`ask-${r.price}`} className="flex justify-between text-green-400">
+                                <span>{(10 - r.price).toFixed(1)}</span><span>{r.qty}</span>
                             </div>
                         ))}
                     </div>
                     <div className="flex-1 ml-2">
-                        <div  className="flex justify-between">
+                        <div className="flex justify-between">
                             <span>Price</span>
-                            <span>Qty</span>
+                            <span>Qty(No)</span>
                         </div>
 
                         {depth.bids.map((r) => (
-                            <div key={`bid-${r.price}`} className="flex justify-between text-green-400">
-                                <span>{r.price.toFixed(1)}</span>
+                            <div key={`bid-${r.price}`} className="flex justify-between text-red-400">
+                                <span>{(10 - r.price).toFixed(1)}</span>
                                 <span>{r.qty}</span>
                             </div>
                         ))}
@@ -146,16 +147,68 @@ function TradeDashboard() {
             <Card className='p-2'>
                 <CardHeader><CardTitle>New Order</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                    <div className="flex space-x-2 items-end">
+                    <div >
                         <select value={side} onChange={(e) => setSide(e.target.value as any)}
                             className="bg-zinc-800 rounded px-2 flex-1">
                             <option value="YES">YES</option>
                             <option value="NO">NO</option>
                         </select>
-                        <Input type="number" step="0.1" min="0.1" max="9.9"
-                            value={price} onChange={(e) => setPrice(+e.target.value)} className="flex-1 text-black" />
-                        <Input type="number" value={qty}
-                            onChange={(e) => setQty(+e.target.value)} className="flex-1 text-black" />
+                        <div className="flex items-center justify-between">
+
+                            <span className='mt-4 flex items-center justify-between'>Price</span>
+                            <div className="mt-4 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setPrice((prev) => prev - 0.1)}
+                                    className='text-black'
+                                >
+                                    <Minus className="h-4 w-4" />
+                                </Button>
+                                <Input  value={price.toFixed(1)}
+                                    onChange={(e) => setPrice(+e.target.value)} className="flex-1 text-black w-16" />
+                                <Button
+                                    variant="outline"
+                                    className='text-black'
+                                    size="icon"
+                                    onClick={() => setPrice((prev) => prev + 0.1)}
+                                >
+                                    <Plus className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+
+
+                            <span className='mt-4 flex items-center justify-between'>Quantity</span>
+                            <div className="mt-4 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => setQty((prev) => prev - 1)}
+                                        className='text-black'
+                                    >
+                                        <Minus className="h-4 w-4" />
+                                    </Button>
+                                    
+                                   
+                                    <Input  value={qty}
+                                        onChange={(e) => setQty(+e.target.value)} className="flex-1 text-black w-16" />
+                                    <Button
+                                        variant="outline"
+                                        className='text-black'
+                                        size="icon"
+                                        onClick={() => setQty((prev) => prev + 1)}
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                        </div>
                     </div>
                     <Button className="w-full" onClick={place}>Submit</Button>
                     {msg && <p className="text-xs">{msg}</p>}
