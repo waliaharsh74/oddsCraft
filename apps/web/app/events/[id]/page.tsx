@@ -23,6 +23,7 @@ const WSS = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8081';
 function TradeDashboard() {
     const { id: eventId } = useParams<{ id: string }>();
     const token = typeof window !== 'undefined' ? localStorage.getItem('oddsCraftToken') : null;
+    const [marketYes, setMarketYes] = useState<number | null>(null);
 
     const [depth, setDepth] = useState<Depth>({ bids: [], asks: [] });
     const [trades, setTrades] = useState<Trade[]>([]);
@@ -70,10 +71,27 @@ function TradeDashboard() {
             const m = JSON.parse(e.data);
             if (m.type === 'depth') setDepth(m.payload);
             if (m.type === 'trade') setTrades((t) => [...m.payload, ...t].slice(0, 40));
+            const last = m.payload[0];               
+            const yesPrice = last.side === 'YES'
+                ? last.price
+                : 10 - last.price;                      
+            setMarketYes(yesPrice);
         };
 
         return () => ws.close();
     }, [token, eventId]);
+
+    useEffect(() => {
+        
+        if (!depth || !depth.bids.length || !depth.asks.length) return;
+        
+
+        const bestBidYes = depth.bids[0]?.price || 0;         
+        const bestAskNo = depth.asks[0]?.price || 0;         
+        const midYes = (bestBidYes + (10 - bestAskNo)) / 2;
+
+        if (marketYes === null) setMarketYes(midYes);
+    }, [depth]); 
 
     async function place() {
         setMsg('posting…');

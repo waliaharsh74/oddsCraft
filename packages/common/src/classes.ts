@@ -53,7 +53,7 @@ export class OrderBook extends EventEmitter {
 
         let remaining = o.qty;
 
-        while (remaining && lvl?.orders.length) {
+        while (remaining && lvl && lvl.orders.length>0) {
             const maker = lvl.orders[0]!;
             const fill = Math.min(remaining, maker.qty);
 
@@ -105,9 +105,12 @@ export class OrderBook extends EventEmitter {
       }
 
     private addLevel(map: Map<number, BookLevel>, o: OrderInMem) {
-        const lvl = map.get(o.price) ?? new BookLevel(o.price);
+        let lvl = map.get(o.price);
+        if (!lvl) {
+            lvl = new BookLevel(o.price);
+            map.set(o.price, lvl);
+        }
         lvl.orders.push(o);
-        map.set(o.price, lvl);
     }
 
     private bestPrice(
