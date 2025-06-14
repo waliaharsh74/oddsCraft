@@ -11,6 +11,7 @@ import { Button } from '@repo/ui/components/button';
 import { withProtectedRoute } from '@/app/context/withProtectedRoute';
 import DepthTable from '@/app/components/DepthTable';
 import { Minus, Plus } from 'lucide-react';
+import { Skeleton } from '@repo/ui/components/skeleton';
 
 interface DepthRow { price: number; qty: number; }
 interface Depth { bids: DepthRow[]; asks: DepthRow[]; }
@@ -116,13 +117,14 @@ function TradeDashboard() {
             <Card className='p-2'>
                 <CardHeader>
                     <CardTitle>
-                        {event ? event.title : 'Loading…'}
+                        {event ? event.title : <Skeleton className="h-[40px] w-full rounded-full bg-zinc-500" />
+                        }
                         {/* <span className="block text-xs font-normal text-zinc-400">
                             Ends {event ? new Date(event.endsAt).toLocaleString() : '—'}
                         </span> */}
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="flex justify-between text-xs">
+                <CardContent className="flex justify-between text-xs p-2">
                     <div className="flex-1 mr-2">
                         <div className="flex justify-between">
                             <span>Price</span>
@@ -177,24 +179,38 @@ function TradeDashboard() {
                             <span className='mt-4 flex items-center justify-between'>Price</span>
                             <div className="mt-4 flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => setPrice((prev) => prev - 0.1)}
-                                    className='text-black'
-                                >
-                                    <Minus className="h-4 w-4" />
-                                </Button>
-                                <Input  value={price.toFixed(1)}
-                                    onChange={(e) => setPrice(+e.target.value)} className="flex-1 text-black w-16" />
-                                <Button
-                                    variant="outline"
-                                    className='text-black'
-                                    size="icon"
-                                    onClick={() => setPrice((prev) => prev + 0.1)}
-                                >
-                                    <Plus className="h-4 w-4" />
-                                </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => setPrice((prev) => Math.max(0.1, prev - 0.5))}
+                                        className="text-black"
+                                        disabled={price <= 0.1}
+                                    >
+                                        <Minus className="h-4 w-4" />
+                                    </Button>
+
+                                    <Input
+                                        min={0.1}
+                                        max={9.9}
+                                        step="0.1"
+                                        value={price.toFixed(1)}
+                                        onChange={(e) => {
+                                            const val = parseFloat(e.target.value);
+                                            if (!isNaN(val) && val > 0 && val < 10) setPrice(val);
+                                        }}
+                                        className="flex-1 text-black w-16 text-center"
+                                    />
+
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => setPrice((prev) => Math.max(9.9, prev + 0.5))}
+                                        className="text-black"
+                                        disabled={price >= 9.9}
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                    </Button>
+
                             </div>
                         </div>
                         </div>
@@ -207,23 +223,39 @@ function TradeDashboard() {
                                     <Button
                                         variant="outline"
                                         size="icon"
-                                        onClick={() => setQty((prev) => prev - 1)}
-                                        className='text-black'
+                                        disabled={qty <= 1}
+                                        onClick={() => setQty((prev) => Math.max(1, prev - 1))}
+                                        className="text-black"
                                     >
                                         <Minus className="h-4 w-4" />
                                     </Button>
-                                    
-                                   
-                                    <Input  value={qty}
-                                        onChange={(e) => setQty(+e.target.value)} className="flex-1 text-black w-16" />
+
+                                    <Input
+                                       
+                                        step="1"
+                                        min="1"
+                                        max="500"
+                                        value={qty}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value, 10);
+                                            if (!isNaN(val) && val >= 0 && val <= 500) {
+                                                setQty(val);
+                                              }
+                                        }}
+                                        className="flex-1 text-black w-16 text-center"
+                                    />
+
                                     <Button
                                         variant="outline"
-                                        className='text-black'
                                         size="icon"
-                                        onClick={() => setQty((prev) => prev + 1)}
+                                        onClick={() => setQty((prev) => Math.min(500, prev + 1))}
+
+                                        className="text-black"
+                                        disabled={qty >= 500}
                                     >
                                         <Plus className="h-4 w-4" />
                                     </Button>
+
                                 </div>
                             </div>
 

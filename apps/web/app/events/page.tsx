@@ -25,7 +25,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 export default function OpenEventsPage() {
     const [events, setEvents] = useState<Event[]>([]);
     const [msg, setMsg] = useState('');
-    const [loading,setLoading]=useState(true);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchEvents = async () => {
@@ -50,8 +50,8 @@ export default function OpenEventsPage() {
 
         fetchEvents();
     }, []);
-    
-    
+
+
     return (
         <div className="p-6 space-y-6 min-h-screen bg-zinc-950 text-zinc-200 py-24">
             <Card className="bg-zinc-900/60 ring-1 ring-zinc-700 p-2">
@@ -92,11 +92,11 @@ export default function OpenEventsPage() {
                                 </tr>
                             ))}
                             {loading && (
-                                 <tr>
-                                 <td colSpan={3} className="p-4 text-center text-zinc-500">
-                                     
-                                 <Skeleton className="h-[25px] w-full rounded-xl bg-zinc-500" />
-                                 </td>
+                                <tr>
+                                    <td colSpan={3} className="p-4 text-center text-zinc-500">
+
+                                        <Skeleton className="h-[25px] w-full rounded-xl bg-zinc-500" />
+                                    </td>
                                 </tr>)}
 
                             {!loading && events.length === 0 && !msg && (
