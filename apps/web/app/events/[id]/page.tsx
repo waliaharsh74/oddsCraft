@@ -71,7 +71,8 @@ function TradeDashboard() {
             const m = JSON.parse(e.data);
             if (m.type === 'depth') setDepth(m.payload);
             if (m.type === 'trade') setTrades((t) => [...m.payload, ...t].slice(0, 40));
-            const last = m.payload[0];               
+            const last = m?.payload[0]!
+            if(!last)return               
             const yesPrice = last.side === 'YES'
                 ? last.price
                 : 10 - last.price;                      
@@ -229,6 +230,14 @@ function TradeDashboard() {
                         </div>
                     </div>
                     <Button className="w-full" onClick={place}>Submit</Button>
+                    {marketYes !== null && (
+                        <div className="mt-1 text-sm font-medium text-zinc-400">
+                            Market&nbsp;
+                            <span className="text-green-400">YES ₹{marketYes.toFixed(1)}</span>
+                            &nbsp;/&nbsp;
+                            <span className="text-red-400">NO ₹{(10 - marketYes).toFixed(1)}</span>
+                        </div>
+                    )}
                     {msg && <p className="text-xs">{msg}</p>}
                 </CardContent>
             </Card>

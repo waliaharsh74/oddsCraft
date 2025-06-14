@@ -11,7 +11,7 @@ import { EventEmitter } from 'events';
 import { sign, auth, requireAdmin } from "../middlewares";
 import { AuthRequest } from "../interfaces";
 const router: Router = express.Router()
-const book = new OrderBook();
+
 const books = new Map<string, OrderBook>();
 
 function getBook(eventId: string) {

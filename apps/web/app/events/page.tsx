@@ -10,6 +10,8 @@ import {
     CardContent,
 } from '@repo/ui/components/card';
 import { Button } from '@repo/ui/components/button';
+import { Skeleton } from "@repo/ui/components/skeleton"
+
 
 type Event = {
     id: string;
@@ -23,22 +25,33 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 export default function OpenEventsPage() {
     const [events, setEvents] = useState<Event[]>([]);
     const [msg, setMsg] = useState('');
+    const [loading,setLoading]=useState(true);
 
     useEffect(() => {
-        const token = localStorage.getItem('oddsCraftToken');
-        if (!token) {
-            setMsg('⚠︎ please sign in');
-            return;
-        }
+        const fetchEvents = async () => {
+            const token = localStorage.getItem('oddsCraftToken');
+            if (!token) {
+                setMsg('⚠︎ please sign in');
+                setLoading(false);
+                return;
+            }
 
-        axios
-            .get<Event[]>(`${API}/api/v1/events?status=OPEN`, {
-                headers: { Authorization: `Bearer ${token}` },
-            })
-            .then((res) => setEvents(res.data))
-            .catch((e) => setMsg(e.response?.data?.error || 'server'));
+            try {
+                const res = await axios.get<Event[]>(`${API}/api/v1/events?status=OPEN`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                setEvents(res.data);
+            } catch (e: any) {
+                setMsg(e.response?.data?.error || 'server');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchEvents();
     }, []);
-
+    
+    
     return (
         <div className="p-6 space-y-6 min-h-screen bg-zinc-950 text-zinc-200 py-24">
             <Card className="bg-zinc-900/60 ring-1 ring-zinc-700 p-2">
@@ -78,8 +91,15 @@ export default function OpenEventsPage() {
                                     </td>
                                 </tr>
                             ))}
+                            {loading && (
+                                 <tr>
+                                 <td colSpan={3} className="p-4 text-center text-zinc-500">
+                                     
+                                 <Skeleton className="h-[25px] w-full rounded-xl bg-zinc-500" />
+                                 </td>
+                                </tr>)}
 
-                            {events.length === 0 && !msg && (
+                            {!loading && events.length === 0 && !msg && (
                                 <tr>
                                     <td colSpan={3} className="p-4 text-center text-zinc-500">
                                         No open events right now
