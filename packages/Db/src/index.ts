@@ -1,5 +1,5 @@
-import { PrismaClient, OrderSide } from "@prisma/client";
+import { PrismaClient, OrderSide,OrderStatus,Role,EventStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export {prisma,OrderSide}
+export { prisma, OrderSide, OrderStatus, Role, EventStatus }

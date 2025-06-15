@@ -1,5 +1,5 @@
 import express, { Router } from "express"
-import { prisma, OrderSide } from "@repo/db"
+import { prisma, OrderSide,OrderStatus,Role,EventStatus } from "@repo/db"
 import Redis from 'ioredis';
 import { Response } from "express";
 import rateLimit from "express-rate-limit"
@@ -197,6 +197,48 @@ router.get("/me/balance", async (req: AuthRequest, res) => {
         }
         const amt = Number(balance?.balancePaise) / 100;
         res.json({ msg: "Balance ", balance: amt });
+
+    } catch (e: any) {
+        console.error(e);
+
+        res.status(500).json({ error: "server error!" });
+    }
+});
+router.get("/me/orders", async (req: AuthRequest, res) => {
+
+    try {
+        const userId = req.userId as string;
+        const status = (req.query.status as OrderStatus || 'OPEN').toUpperCase();
+
+        const where = { userId } as any;
+        if (status !== 'ALL') where.status = status;
+
+        const orders = await prisma.order.findMany({
+            where,
+            select: {
+                id: true, eventId: true, side: true, pricePaise: true, qty: true,
+                openQty: true, status: true, createdAt: true
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        res.json(orders);
+
+    } catch (e: any) {
+        console.error(e);
+
+        res.status(500).json({ error: "server error!" });
+    }
+});
+router.get("/me/trades", async (req: AuthRequest, res) => {
+
+    try {
+        const userId = req.userId as string;
+        const trades = await prisma.trade.findMany({
+            where: { OR: [{ makerId: userId }, { takerId: userId }] },
+            orderBy: { createdAt: 'desc' },
+            take: 100,
+        });
+        res.json(trades);
 
     } catch (e: any) {
         console.error(e);
