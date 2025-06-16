@@ -27,12 +27,16 @@ function publishDepth(eventId: string) {
     });
 }
 
+
 function publishTrades(eventId: string, trades: TradeMsg[]) {
     bus.emit('trade', { eventId, trades });
 }
 
 const bus = new EventEmitter();
 const pub = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+bus.on('trade', (msg) => {
+    pub.xadd('trades', '*', 'data', JSON.stringify(msg));
+});
 
 function publish(channel: string, payload: unknown) {
     pub.publish(channel, JSON.stringify(payload));
@@ -138,8 +142,16 @@ router.post('/orders', async (req: AuthRequest, res) => {
         }
 
         const stakePaise = Math.round(price * 100) * qty;
+        const u = await prisma.user.findUnique({ where: { id: userId }, select: { balancePaise: true } });
+        if (!u || u.balancePaise < stakePaise)
+             {res.status(400).json({ error: 'insufficient_balance' })
+        return}
 
         const result = await prisma.$transaction(async (tx) => {
+            await tx.user.update({
+                where: { id: userId },
+                data: { balancePaise: { decrement: stakePaise } },
+              });
 
             const dbOrder = await tx.order.create({
                 data: {
@@ -157,6 +169,44 @@ router.post('/orders', async (req: AuthRequest, res) => {
             const trades = getBook(eventId).addOrder({
                 id: dbOrder.id, userId, side, price, qty, createdAt: Date.now(),
             });
+            for (const t of trades) {
+                await tx.trade.create({
+                    data: {
+                        id: t.tradeId,
+                        orderAggressorId: dbOrder.id,
+                        makerOrderId: t.makerOrderId,
+                        pricePaise: Math.round(t.price * 100),
+                        qty: t.qty,
+                        takerId: t.taker,
+                        makerId: t.maker,
+                        createdAt: new Date(t.ts),
+                    },
+                });
+
+                const makerStakePaise = Math.round(t.price * 100) * t.qty;
+                await tx.user.update({
+                    where: { id: t.maker },
+                    data: { balancePaise: { increment: makerStakePaise } },
+                });
+
+                await tx.order.update({
+                    where: { id: t.makerOrderId },
+                    data: {
+                        openQty: { decrement: t.qty },
+                        status: t.remainingMakerQty ? 'OPEN' : 'FILLED',
+                    },
+                });
+            }
+
+            /* 5 ─ update taker order status / residual qty */
+            const filled = trades.reduce((s, t) => s + t.qty, 0);
+            await tx.order.update({
+                where: { id: dbOrder.id },
+                data: {
+                    openQty: qty - filled,
+                    status: filled === qty ? 'FILLED' : 'OPEN',
+                },
+              });
 
 
             return { dbOrder, trades };
@@ -173,11 +223,11 @@ router.post('/orders', async (req: AuthRequest, res) => {
         res.json({ orderId: result.dbOrder.id, trades: result.trades });
     } catch (e: any) {
         if (e?.message === 'FUNDS') {
-            res.status(400).json({ error: 'insufficient_balance' });
+            res.status(400).json({ error: 'insufficient balance' });
             return
         }
         console.error(e);
-        res.status(500).json({ error: 'server_error' });
+        res.status(500).json({ error: 'server error' });
     }
 });
 
