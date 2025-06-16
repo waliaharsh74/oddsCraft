@@ -70,7 +70,8 @@ model Trade {
   takerId          String
   makerId          String
   createdAt        DateTime @default(now())
-
+  eventId         String
+  event Event @relation("EventTrades",fields: [eventId],references: [id])
   aggressorOrder Order @relation("AggressorOrder", fields: [orderAggressorId], references: [id])
   makerOrder     Order @relation("MakerOrder", fields: [makerOrderId], references: [id])
 
@@ -97,6 +98,7 @@ model Event {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   orders      Order[]     @relation("EventOrders")
+  trade       Trade[] @relation("EventTrades")
 
   @@index([status, endsAt])
 }
