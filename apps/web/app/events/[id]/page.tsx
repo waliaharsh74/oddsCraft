@@ -5,17 +5,31 @@ import { useParams } from 'next/navigation';
 import axios from 'axios';
 import {
     Card, CardHeader, CardTitle, CardContent,
+    CardAction,
 } from '@repo/ui/components/card';
 import { Input } from '@repo/ui/components/input';
 import { Button } from '@repo/ui/components/button';
 import { withProtectedRoute } from '@/app/context/withProtectedRoute';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@repo/ui/components/select"
+import {
+    ToggleGroup,
+    ToggleGroupItem,
+} from "@repo/ui/components/toggle-group"
 import DepthTable from '@/app/components/DepthTable';
 import { Minus, Plus } from 'lucide-react';
 import { Skeleton } from '@repo/ui/components/skeleton';
+import { prisma, OrderSide, OrderStatus, Role, EventStatus } from "@repo/db"
+
 
 interface DepthRow { price: number; qty: number; }
 interface Depth { bids: DepthRow[]; asks: DepthRow[]; }
-interface Trade { tradeId: string; side: 'YES' | 'NO'; price: number; qty: number; ts: number; }
+interface Trade { tradeId: string; side: OrderSide; price: number; qty: number; ts: number; }
 interface EventMeta { id: string, title: string; endsAt: string; }
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -31,7 +45,7 @@ function TradeDashboard() {
     const [event, setEvent] = useState<EventMeta | null | undefined>(null);
 
 
-    const [side, setSide] = useState<'YES' | 'NO'>('YES');
+    const [side, setSide] = useState<OrderSide>('YES');
     const [price, setPrice] = useState(7.5);
     const [qty, setQty] = useState(100);
     const [msg, setMsg] = useState('');
@@ -73,10 +87,10 @@ function TradeDashboard() {
             if (m.type === 'depth') setDepth(m.payload);
             if (m.type === 'trade') setTrades((t) => [...m.payload, ...t].slice(0, 40));
             const last = m?.payload[0]!
-            if(!last)return               
+            if (!last) return
             const yesPrice = last.side === 'YES'
                 ? last.price
-                : 10 - last.price;                      
+                : 10 - last.price;
             setMarketYes(yesPrice);
         };
 
@@ -84,16 +98,16 @@ function TradeDashboard() {
     }, [token, eventId]);
 
     useEffect(() => {
-        
-        if (!depth || !depth.bids.length || !depth.asks.length) return;
-        
 
-        const bestBidYes = depth.bids[0]?.price || 0;         
-        const bestAskNo = depth.asks[0]?.price || 0;         
+        if (!depth || !depth.bids.length || !depth.asks.length) return;
+
+
+        const bestBidYes = depth.bids[0]?.price || 0;
+        const bestAskNo = depth.asks[0]?.price || 0;
         const midYes = (bestBidYes + (10 - bestAskNo)) / 2;
 
         if (marketYes === null) setMarketYes(midYes);
-    }, [depth]); 
+    }, [depth]);
 
     async function place() {
         setMsg('posting…');
@@ -165,20 +179,52 @@ function TradeDashboard() {
                 </CardContent>
             </Card>
 
-            <Card className='p-2'>
+            <Card className='p-2 bg-card-foreground'>
                 <CardHeader><CardTitle>New Order</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
+                    <CardAction>
+                        <ToggleGroup
+                            type="single"
+                            defaultValue="YES"
+                            value={side}
+                            onValueChange={(val: string) => { if (val) setSide(val as OrderSide); }}
+                            variant="outline"
+                            className="@[767px]/card:flex"
+                            
+                        >
+                      
+                      
+                            <ToggleGroupItem value='YES' className="rounded-full m-1 data-[state=on]:bg-white data-[state=on]:text-black ">YES</ToggleGroupItem>
+                            <ToggleGroupItem value="NO" className="rounded-full m-1 data-[state=on]:bg-white data-[state=on]:text-black">NO</ToggleGroupItem>
+
+                        </ToggleGroup>
+                        {/* <Select value={side} onValueChange={(val: string) => setSide(val as OrderSide)}>
+                            <SelectTrigger className="w-[280px]">
+                                <SelectValue placeholder="Yes" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                                <SelectItem value="YES" className="rounded-lg">
+                                    Yes
+                                </SelectItem>
+                                <SelectItem value="NO" className="rounded-lg">
+                                    No
+                                </SelectItem>
+
+                            </SelectContent>
+                        </Select> */}
+                    </CardAction>
                     <div >
-                        <select value={side} onChange={(e) => setSide(e.target.value as any)}
+                        {/* <select value={side} onChange={(e) => setSide(e.target.value as any)}
                             className="bg-zinc-800 rounded px-2 flex-1">
                             <option value="YES">YES</option>
                             <option value="NO">NO</option>
-                        </select>
+                        </select> */}
+                       
                         <div className="flex items-center justify-between">
 
                             <span className='mt-4 flex items-center justify-between'>Price</span>
                             <div className="mt-4 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2">
                                     <Button
                                         variant="outline"
                                         size="icon"
@@ -211,8 +257,8 @@ function TradeDashboard() {
                                         <Plus className="h-4 w-4" />
                                     </Button>
 
+                                </div>
                             </div>
-                        </div>
                         </div>
                         <div className="flex items-center justify-between">
 
@@ -231,7 +277,7 @@ function TradeDashboard() {
                                     </Button>
 
                                     <Input
-                                       
+
                                         step="1"
                                         min="1"
                                         max="500"
@@ -240,7 +286,7 @@ function TradeDashboard() {
                                             const val = parseInt(e.target.value, 10);
                                             if (!isNaN(val) && val >= 0 && val <= 500) {
                                                 setQty(val);
-                                              }
+                                            }
                                         }}
                                         className="flex-1 text-black w-16 text-center"
                                     />

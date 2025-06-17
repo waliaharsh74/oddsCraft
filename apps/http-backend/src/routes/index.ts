@@ -1,7 +1,7 @@
 import express, { Router } from "express"
-import { prisma, OrderSide,OrderStatus,Role,EventStatus } from "@repo/db"
+import { prisma, OrderSide, OrderStatus, Role, EventStatus } from "@repo/db"
 import Redis from 'ioredis';
-import { Response } from "express";
+
 import rateLimit from "express-rate-limit"
 import { randomUUID } from "crypto";
 import { Side, TradeMsg, OrderBook, signupSchema, signinSchema, cancelSchema, orderSchema, balanceSchema, eventCreateSchema, eventUpdateSchema, EventSchema } from "@repo/common"
@@ -143,15 +143,16 @@ router.post('/orders', async (req: AuthRequest, res) => {
 
         const stakePaise = Math.round(price * 100) * qty;
         const u = await prisma.user.findUnique({ where: { id: userId }, select: { balancePaise: true } });
-        if (!u || u.balancePaise < stakePaise)
-             {res.status(400).json({ error: 'insufficient_balance' })
-        return}
+        if (!u || u.balancePaise < stakePaise) {
+            res.status(400).json({ error: 'insufficient_balance' })
+            return
+        }
 
         const result = await prisma.$transaction(async (tx) => {
             await tx.user.update({
                 where: { id: userId },
                 data: { balancePaise: { decrement: stakePaise } },
-              });
+            });
 
             const dbOrder = await tx.order.create({
                 data: {
@@ -162,7 +163,7 @@ router.post('/orders', async (req: AuthRequest, res) => {
                     qty,
                     openQty: qty,
                     status: 'OPEN',
-                    eventId,                            
+                    eventId,
                 },
             });
 
@@ -199,7 +200,7 @@ router.post('/orders', async (req: AuthRequest, res) => {
                 });
             }
 
-            /* 5 ─ update taker order status / residual qty */
+
             const filled = trades.reduce((s, t) => s + t.qty, 0);
             await tx.order.update({
                 where: { id: dbOrder.id },
@@ -207,7 +208,7 @@ router.post('/orders', async (req: AuthRequest, res) => {
                     openQty: qty - filled,
                     status: filled === qty ? 'FILLED' : 'OPEN',
                 },
-              });
+            });
 
 
             return { dbOrder, trades };
@@ -266,11 +267,11 @@ router.get("/me/orders", async (req: AuthRequest, res) => {
 
         const orders = await prisma.order.findMany({
             where,
-            select: {
-                id: true, eventId: true, side: true, pricePaise: true, qty: true,
-                openQty: true, status: true, createdAt: true
-            },
+            
             orderBy: { createdAt: 'desc' },
+            include:{
+                event:true
+            }
         });
         res.json(orders);
 
@@ -288,6 +289,9 @@ router.get("/me/trades", async (req: AuthRequest, res) => {
             where: { OR: [{ makerId: userId }, { takerId: userId }] },
             orderBy: { createdAt: 'desc' },
             take: 100,
+            include :{
+                event:true
+            }
         });
         res.json(trades);
 
