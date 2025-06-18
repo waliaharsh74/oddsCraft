@@ -127,10 +127,11 @@ function TradeDashboard() {
     return (
         <div className="grid lg:grid-cols-3 gap-4 py-24 min-h-screen bg-zinc-950 text-zinc-200 font-mono">
             <div className="absolute -top-40 -left-40 w-80 h-80 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse"></div>
-            <div className="absolute -bottom-32 -right-32 w-[12rem] h-[12rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse"></div>
-            <Card className='p-2'>
+            <div className="absolute -bottom-1 -right-32 w-[12rem] h-[12rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse"></div>
+            <div className='col-span-2 flex flex-col'>
+                <Card className='p-2 bg-[#171717] h-[20%] mb-2'>
                 <CardHeader>
-                    <CardTitle>
+                    <CardTitle className='text-2xl'>
                         {event ? event.title : <Skeleton className="h-[40px] w-full rounded-full bg-zinc-500" />
                         }
                         {/* <span className="block text-xs font-normal text-zinc-400">
@@ -138,11 +139,15 @@ function TradeDashboard() {
                         </span> */}
                     </CardTitle>
                 </CardHeader>
+             
+            </Card>
+                <Card className='p-2 bg-[#171717] h-full mt-1'>
+                
                 <CardContent className="flex justify-between text-xs p-2">
                     <div className="flex-1 mr-2">
                         <div className="flex justify-between">
-                            <span>Price</span>
-                            <span>Qty(Yes)</span>
+                            <span className='text-lg'>Price</span>
+                            <span className='text-lg'>Qty(Yes)</span>
                         </div>
                         {depth.asks.map((r) => (
                             <div key={`ask-${r.price}`} className="flex justify-between text-green-400">
@@ -152,8 +157,8 @@ function TradeDashboard() {
                     </div>
                     <div className="flex-1 ml-2">
                         <div className="flex justify-between">
-                            <span>Price</span>
-                            <span>Qty(No)</span>
+                            <span className='text-lg'>Price</span>
+                            <span className='text-lg'>Qty(No)</span>
                         </div>
 
                         {depth.bids.map((r) => (
@@ -166,8 +171,9 @@ function TradeDashboard() {
                     {/* <DepthTable bids={depth.bids} asks={depth.asks} /> */}
                 </CardContent>
             </Card>
+            </div>
 
-            <Card className="overflow-y-auto max-h-[70vh] p-2">
+            {/* <Card className="overflow-y-auto max-h-[70vh] p-2 bg-[#171717]">
                 <CardHeader><CardTitle>Trades</CardTitle></CardHeader>
                 <CardContent className="space-y-1 text-xs">
                     {trades.map((t) => (
@@ -177,9 +183,9 @@ function TradeDashboard() {
                         </div>
                     ))}
                 </CardContent>
-            </Card>
+            </Card> */}
 
-            <Card className='p-2 bg-card-foreground'>
+            <Card className='p-2 bg-[#171717] col col-span-1 sticky top-24'>
                 <CardHeader><CardTitle>New Order</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                     <CardAction>

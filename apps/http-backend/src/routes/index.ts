@@ -177,6 +177,7 @@ router.post('/orders', async (req: AuthRequest, res) => {
                         orderAggressorId: dbOrder.id,
                         makerOrderId: t.makerOrderId,
                         eventId,
+                        side,
                         pricePaise: Math.round(t.price * 100),
                         qty: t.qty,
                         takerId: t.taker,

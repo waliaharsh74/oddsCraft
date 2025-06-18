@@ -50,7 +50,17 @@ export default function OpenEventsPage() {
 
         fetchEvents();
     }, []);
-
+    if(loading){
+        return(
+            <div className='bg-zinc-950 min-h-screen '>
+                <div className='py-6'></div>
+                <Skeleton className="h-[120px] w-[95%] mx-6 my-6 space-y-1 rounded-xl bg-zinc-500 " />
+                <Skeleton className="h-[120px] w-[95%] mx-6 my-6 space-y-1 rounded-xl bg-zinc-500 " />
+                <Skeleton className="h-[120px] w-[95%] mx-6 my-6 space-y-1 rounded-xl bg-zinc-500 " />
+                
+            </div>
+        )
+    }
 
     return (
         <div className="p-6 space-y-6 min-h-screen bg-zinc-950 text-zinc-200 py-24">
@@ -91,18 +101,18 @@ export default function OpenEventsPage() {
                                     </td>
                                 </tr>
                             ))}
-                            {loading && (
+                            {/* {loading && (
                                 <tr>
                                     <td colSpan={3} className="p-4 text-center text-zinc-500">
 
-                                        <Skeleton className="h-[25px] w-full rounded-xl bg-zinc-500" />
+                                        
                                     </td>
-                                </tr>)}
+                                </tr>)} */}
 
-                            {!loading && events.length === 0 && !msg && (
+                            {events.length === 0 && !msg && (
                                 <tr>
                                     <td colSpan={3} className="p-4 text-center text-zinc-500">
-                                        No open events right now
+                                        No open events right now! ask admin to create one
                                     </td>
                                 </tr>
                             )}

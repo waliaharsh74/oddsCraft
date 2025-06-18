@@ -95,21 +95,21 @@ function UserWalletCard() {
     }
 
     return (
-        <div className="px-6 py-32 space-y-6 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-800 min-h-screen text-white">
-            {/* blobs */}
+        <div className="px-6 py-32 grid lg:grid-cols-3 gap-4  space-y-6 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-800 min-h-screen text-white">
+            
             <div className="absolute -top-40 -left-40 w-80 h-80 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse" />
             <div className="absolute -bottom-6 -right-32 w-[12rem] h-[12rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse" />
 
-            <Card className="max-w-xl mx-auto p-4">
+            <Card className="col-span-1">
                 <CardHeader><CardTitle className="text-xl">Wallet</CardTitle></CardHeader>
 
                 <CardContent className="space-y-6">
-                    {/* balance */}
+                    
                     <div className="text-4xl font-extrabold text-emerald-400">
                         {balance === null ? '—' : `₹${balance.toFixed(2)}`}
                     </div>
 
-                    {/* quick buttons */}
+                
                     <div className="flex gap-3">
                         {QUICK.map((v,i) => (
                             <Button key={i} variant="outline" className="flex-1 text-black" onClick={() => topUp(v)}>
@@ -118,7 +118,7 @@ function UserWalletCard() {
                         ))}
                     </div>
 
-                    {/* custom input */}
+                
                     <div className="flex gap-2">
                         <Input placeholder="custom" type="number" value={custom}
                             onChange={e => setCustom(e.target.value)} className="flex-1 text-black" />
@@ -127,10 +127,18 @@ function UserWalletCard() {
 
                     {msg && <p className="text-xs text-zinc-400">{msg}</p>}
 
-                    {/* my orders */}
-                    <div className="pt-6">
-                        <h4 className="font-semibold mb-2">My Orders</h4>
-                        <div className="h-40 overflow-y-auto border border-zinc-700/40 rounded p-1 text-xs space-y-1">
+
+                </CardContent>
+
+                <CardFooter className="text-xs text-zinc-500">Funds are demo rupees. Top-ups are instant.</CardFooter>
+            </Card>
+            <Card className='font-semibold  col-span-2'>
+                <CardHeader>
+                    <CardTitle>
+                        My Orders
+                    </CardTitle>
+                    <CardContent>
+                        <div className="h-40 overflow-y-auto border border-zinc-700/40 rounded p-1 ">
                             {orders.length === 0 && <p className="text-zinc-500">no open orders</p>}
                             {orders.map(o => (
                                 <div key={o.id} className="flex flex-col border-b border-zinc-800 pb-1 last:border-none">
@@ -147,33 +155,38 @@ function UserWalletCard() {
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </CardContent>
+                </CardHeader>
+            </Card>
+            <Card className='font-semibold  col-span-3'>
+                <CardHeader>
+                    <CardTitle>
+                        My Trades
+                    </CardTitle>
+                    <CardContent>
+                        <div className="pt-6">
+                          
+                            <div className="h-40 overflow-y-auto border border-zinc-700/40 rounded p-1 ">
+                                {trades.length === 0 && <p className="text-zinc-500">no trades yet</p>}
+                                {trades.map(t => (
+                                    <div key={t.id} className="flex flex-col border-b border-zinc-800 pb-1 last:border-none">
+                                        <div className="flex justify-between">
+                                            <span className={t.side === 'YES' ? 'text-green-400' : 'text-red-400'}>
+                                                {t.side}
+                                            </span>
+                                            <span>{t.qty}@{rup(t.pricePaise)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-[10px] text-zinc-400">
+                                            <span>{t.event.title}</span>
+                                            <span>{new Date(t.createdAt).toLocaleDateString()}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
 
-                    {/* my trades */}
-                    <div className="pt-6">
-                        <h4 className="font-semibold mb-2">My Trades</h4>
-                        <div className="h-40 overflow-y-auto border border-zinc-700/40 rounded p-1 text-xs space-y-1">
-                            {trades.length === 0 && <p className="text-zinc-500">no trades yet</p>}
-                            {trades.map(t => (
-                                <div key={t.id} className="flex flex-col border-b border-zinc-800 pb-1 last:border-none">
-                                    <div className="flex justify-between">
-                                        <span className={t.side === 'YES' ? 'text-green-400' : 'text-red-400'}>
-                                            {t.side}
-                                        </span>
-                                        <span>{t.qty}@{rup(t.pricePaise)}</span>
-                                    </div>
-                                    <div className="flex justify-between text-[10px] text-zinc-400">
-                                        <span>{t.event.title}</span>
-                                        <span>{new Date(t.createdAt).toLocaleDateString()}</span>
-                                    </div>
-                                </div>
-                            ))}
                         </div>
-
-                    </div>
-                </CardContent>
-
-                <CardFooter className="text-xs text-zinc-500">Funds are demo rupees. Top-ups are instant.</CardFooter>
+                    </CardContent>
+                </CardHeader>
             </Card>
         </div>
     );
