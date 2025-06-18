@@ -66,6 +66,7 @@ model Trade {
   orderAggressorId String
   makerOrderId     String
   pricePaise       Int
+  side             OrderSide
   qty              Int
   takerId          String
   makerId          String
