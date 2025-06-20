@@ -43,7 +43,7 @@ function TradeDashboard() {
     const [depth, setDepth] = useState<Depth>({ bids: [], asks: [] });
     const [trades, setTrades] = useState<Trade[]>([]);
     const [event, setEvent] = useState<EventMeta | null | undefined>(null);
-
+    const [loading,setLoading]=useState(true);
 
     const [side, setSide] = useState<OrderSide>('YES');
     const [price, setPrice] = useState(7.5);
@@ -68,8 +68,10 @@ function TradeDashboard() {
                     setEvent(meta.data[0]);
                 }
                 setDepth(book.data);
+                setLoading(false)
             } catch (err: any) {
                 setMsg(err.response?.data?.error || 'server');
+                setLoading(false)
             }
         }
 
@@ -122,7 +124,20 @@ function TradeDashboard() {
             setMsg(`❌ ${err.response?.data?.error || 'server'}`);
         }
     }
+    if (loading) {
+        return (
+            <div className='bg-zinc-950 min-h-screen py-24 grid lg:grid-cols-3 gap-4 '>
 
+                <div className='col-span-2 flex flex-col'>
+
+                    <Skeleton className=" bg-zinc-500 h-[20%] mb-2" />
+                    <Skeleton className="col-span-2  rounded-xl bg-zinc-500  h-full mt-1" />
+                </div>
+                <Skeleton className="p-2  col col-span-1 rounded-xl bg-zinc-500  sticky top-24" />
+
+            </div>
+        )
+    }
 
     return (
         <div className="grid lg:grid-cols-3 gap-4 py-24 min-h-screen bg-zinc-950 text-zinc-200 font-mono">

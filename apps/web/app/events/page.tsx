@@ -24,8 +24,8 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export default function OpenEventsPage() {
     const [events, setEvents] = useState<Event[]>([]);
-    const [msg, setMsg] = useState('');
-    const [loading, setLoading] = useState(true);
+    const [msg, setMsg] = useState<string>('');
+    const [loading, setLoading] = useState<boolean>(true);
 
     useEffect(() => {
         const fetchEvents = async () => {
@@ -64,6 +64,8 @@ export default function OpenEventsPage() {
 
     return (
         <div className="p-6 space-y-6 min-h-screen bg-zinc-950 text-zinc-200 py-24">
+            <div className="absolute -top-40 -left-40 w-120 h-60 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse" />
+            <div className="absolute -bottom-6 -right-32 w-[12rem] h-[12rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse" />
             <Card className="bg-zinc-900/60 ring-1 ring-zinc-700 p-2">
                 <CardHeader>
                     <CardTitle className="text-xl">Open Events</CardTitle>
@@ -76,8 +78,8 @@ export default function OpenEventsPage() {
                         <thead>
                             <tr className="text-zinc-400">
                                 <th className="text-left p-2">Event</th>
-                                <th className="p-2">Ends</th>
-                                <th className="p-2"></th>
+                                <th className="p-2 text-left">Ends</th>
+                                <th className="p-2 text-left"> View</th>
                             </tr>
                         </thead>
                         <tbody>

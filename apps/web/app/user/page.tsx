@@ -5,11 +5,13 @@ import { prisma, OrderSide, OrderStatus, Role, EventStatus } from "@repo/db"
 import { z } from 'zod';
 
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@repo/ui/components/card';
+import { Badge  } from '@repo/ui/components/badge';
 import { Button } from '@repo/ui/components/button';
 import { Input } from '@repo/ui/components/input';
 import axios from 'axios';
-import { AuthContext } from '../context/AuthContext';
 import { withProtectedRoute } from '../context/withProtectedRoute';
+import { Skeleton } from '@repo/ui/components/skeleton';
+import { BadgeCheckIcon } from 'lucide-react';
 interface TradeMsg {
     id: string; side: OrderSide; pricePaise: number; qty: number; createdAt: string; event: EventLite; 
   }
@@ -35,6 +37,7 @@ function UserWalletCard() {
     const [token, setToken] = useState<string | null>(null);
     const [orders, setOrders] = useState<OrderInMem[]>([]);
     const [trades, setTrades] = useState<TradeMsg[]>([]);
+    const[loading,setLoading]=useState<boolean>(true)
     const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
     const headers = useMemo(() => ({ headers: { Authorization: `Bearer ${token}` } }), [token]);
 
@@ -48,7 +51,12 @@ function UserWalletCard() {
             setBalance(bal.data.balance);
             setOrders(ord.data);
             setTrades(trd.data.slice(0, 20));
-        } catch { setMsg('⚠︎ could not fetch data'); }
+            setLoading(false)
+        } catch {
+            
+            setMsg('⚠︎ could not fetch data'); 
+            setLoading(false)
+        }
     }
 
 
@@ -81,7 +89,7 @@ function UserWalletCard() {
                     s === 'CANCELLED' ? 'bg-zinc-600/20 text-zinc-400' :
                         s === 'SETTLED' ? 'bg-indigo-600/20 text-indigo-400' :
                             'bg-zinc-700';
-        return <span className={`px-1 rounded text-[10px] ${clr}`}>{s}</span>;
+        return <span className={`px-1 rounded  ${clr}`}>{s}</span>;
     }
 
     function submitCustom() {
@@ -94,8 +102,23 @@ function UserWalletCard() {
         topUp(amt);
     }
 
+    if (loading) {
+        return (
+            <div className='px-6 bg-zinc-950 min-h-screen py-24 grid lg:grid-cols-3 gap-4 '>
+
+                {/* <div className='col-span-2 flex flex-col'>
+
+                </div> */}
+                <Skeleton className=" bg-zinc-500 col-span-1 mb-2  rounded-xl"  />
+                    <Skeleton className="col-span-2 rounded-xl bg-zinc-500 mb-2 " />
+                <Skeleton className="col-span-3 rounded-xl bg-zinc-500  " />
+
+            </div>
+        )
+    }
+
     return (
-        <div className="px-6 py-32 grid lg:grid-cols-3 gap-4  space-y-6 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-800 min-h-screen text-white">
+        <div className="px-6 py-24 grid lg:grid-cols-3 gap-4  space-y-6 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-800 min-h-screen text-white">
             
             <div className="absolute -top-40 -left-40 w-80 h-80 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse" />
             <div className="absolute -bottom-6 -right-32 w-[12rem] h-[12rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse" />
@@ -137,24 +160,46 @@ function UserWalletCard() {
                     <CardTitle>
                         My Orders
                     </CardTitle>
-                    <CardContent>
-                        <div className="h-40 overflow-y-auto border border-zinc-700/40 rounded p-1 ">
-                            {orders.length === 0 && <p className="text-zinc-500">no open orders</p>}
-                            {orders.map(o => (
-                                <div key={o.id} className="flex flex-col border-b border-zinc-800 pb-1 last:border-none">
-                                    <div className="flex justify-between">
-                                        <span className={o.side === 'YES' ? 'text-green-400' : 'text-red-400'}>
-                                            {o.side} ₹{rup(o.pricePaise)}
-                                        </span>
-                                        <span>{o.openQty}</span>
-                                    </div>
-                                    <div className="flex justify-between text-[10px] text-zinc-400">
-                                        <span>{o.event.title}</span>
-                                        <StatusBadge s={o.status} />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                    <CardContent className='h-40 overflow-y-auto'>
+                        <table className="w-full  text-sm ">
+                            <thead className=" text-zinc-400">
+                                <tr>
+                                    <th className="p-2 text-left"> Title</th>
+                                    <th className="p-2 text-left">Bid</th>
+                                    <th className="p-2 text-left">Price</th>
+                                    <th className="p-2 text-left">Qty</th>
+                                    <th className="p-2 text-left">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-800 ">
+                                {orders.length === 0 ? (
+                                    <tr className="border-t border-zinc-700">
+                                        <td  className="text-center text-zinc-500 p-4">
+                                            no open orders
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    orders.map((o) => (
+                                        <tr key={o.id} className="border-t border-zinc-700">
+                                            <td className="p-2">{o.event.title} </td>
+                                            <td >
+                                                <Badge
+                                                    variant="destructive"
+                                                    className={` ${o.side === 'YES' ? 'bg-green-600' : 'bg-red-600'}`}
+                                                >
+                                                    {/* <BadgeCheckIcon /> */}
+                                                    {o.side}
+                                                </Badge>
+                                            </td>
+                                            <td className="p-2">₹{rup(o.pricePaise)}</td>
+                                            <td className="p-2">{o.openQty}</td>
+                                            <td className="p-2">  <Badge variant="secondary">{o.status}</Badge> </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+
                     </CardContent>
                 </CardHeader>
             </Card>
@@ -164,27 +209,48 @@ function UserWalletCard() {
                         My Trades
                     </CardTitle>
                     <CardContent>
-                        <div className="pt-6">
-                          
-                            <div className="h-40 overflow-y-auto border border-zinc-700/40 rounded p-1 ">
-                                {trades.length === 0 && <p className="text-zinc-500">no trades yet</p>}
-                                {trades.map(t => (
-                                    <div key={t.id} className="flex flex-col border-b border-zinc-800 pb-1 last:border-none">
-                                        <div className="flex justify-between">
-                                            <span className={t.side === 'YES' ? 'text-green-400' : 'text-red-400'}>
-                                                {t.side}
-                                            </span>
-                                            <span>{t.qty}@{rup(t.pricePaise)}</span>
-                                        </div>
-                                        <div className="flex justify-between text-[10px] text-zinc-400">
-                                            <span>{t.event.title}</span>
-                                            <span>{new Date(t.createdAt).toLocaleDateString()}</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                        <table className="w-full text-sm">
+                            <thead className="text-zinc-400">
+                                <tr>
+                                    <th className="p-2 text-left">Title</th>
+                                    <th className="p-2 text-left">Bid</th>
+                                    <th className="p-2 text-left">Price</th>
+                                    <th className="p-2 text-left">Qty</th>
+                                    <th className="p-2 text-left">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-800 h-40 overflow-y-auto">
+                                {trades.length === 0 ? (
+                                    <tr className="border-t border-zinc-700">
+                                        <td colSpan={5} className="text-center text-zinc-500 p-4">
+                                            no trades yet
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    trades.map(t => (
+                                        <tr key={t.id} className="border-t border-zinc-700">
+                                            <td className="p-2">{t.event.title}</td>
+                                            
+                                                <td >
+                                                    
+                                                    <Badge
+                                                        variant="destructive"
+                                                        className={` ${t.side === 'YES' ? 'bg-green-600' : 'bg-red-600'}`}
+                                                    >
+                                                    <BadgeCheckIcon size={18} />    
+                                                        {t.side}
+                                                    </Badge>
+                                                </td>
+                                            
+                                            <td className="p-2">₹{rup(t.pricePaise)}</td>
+                                            <td className="p-2">{t.qty}</td>
+                                            <td className="p-2 text-xs text-zinc-400">{new Date(t.createdAt).toLocaleDateString()}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
 
-                        </div>
                     </CardContent>
                 </CardHeader>
             </Card>

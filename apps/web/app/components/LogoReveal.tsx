@@ -6,7 +6,6 @@ import gsap from 'gsap';
 import * as THREE from 'three';
 import { OrbitControls } from '@three-ts/orbit-controls';
 
-// make OrbitControls available as <orbitControls />
 extend({ OrbitControls });
 
 function Controls(){

@@ -87,9 +87,7 @@ export default function AdminEvents() {
                                     <td className="p-2">{ev.status}</td>
                                     <td className="p-2">
                                         {ev.status === 'OPEN' &&
-                                            <Button size="sm" className='text-black' variant="outline"
-                                           
-                                             onClick={() => close(ev.id)}>Close</Button>}
+                                            <Button size="sm" className='text-black' variant="outline"onClick={() => close(ev.id)}>Close</Button>}
                                     </td>
                                 </tr>
                             ))}
