@@ -118,10 +118,10 @@ function UserWalletCard() {
     }
 
     return (
-        <div className="px-6 py-24 grid lg:grid-cols-3 gap-4  space-y-6 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-800 min-h-screen text-white">
+        <div className="px-6 py-24 lg:grid lg:grid-cols-3 gap-4  space-y-6 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-800 min-h-screen w-full text-white">
             
             <div className="absolute -top-40 -left-40 w-80 h-80 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse" />
-            <div className="absolute -bottom-6 -right-32 w-[12rem] h-[12rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse" />
+            <div className="absolute lg:-bottom-6 lg:-right-32 -bottom-40 -right-0 w-[12rem] h-[12rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse" />
 
             <Card className="col-span-1">
                 <CardHeader><CardTitle className="text-xl">Wallet</CardTitle></CardHeader>
@@ -164,7 +164,7 @@ function UserWalletCard() {
                         <table className="w-full  text-sm ">
                             <thead className=" text-zinc-400">
                                 <tr>
-                                    <th className="p-2 text-left"> Title</th>
+                                    <th className="p-2 text-left min-w-[200px]"> Title</th>
                                     <th className="p-2 text-left">Bid</th>
                                     <th className="p-2 text-left">Price</th>
                                     <th className="p-2 text-left">Qty</th>
@@ -181,7 +181,7 @@ function UserWalletCard() {
                                 ) : (
                                     orders.map((o) => (
                                         <tr key={o.id} className="border-t border-zinc-700">
-                                            <td className="p-2">{o.event.title} </td>
+                                            <td className="p-2 min-w-[200px]" >{o.event.title} </td>
                                             <td >
                                                 <Badge
                                                     variant="destructive"
@@ -208,18 +208,18 @@ function UserWalletCard() {
                     <CardTitle>
                         My Trades
                     </CardTitle>
-                    <CardContent>
+                    <CardContent className='overflow-y-auto'>
                         <table className="w-full text-sm">
                             <thead className="text-zinc-400">
                                 <tr>
-                                    <th className="p-2 text-left">Title</th>
+                                    <th className="p-2 text-left min-w-[200px]">Title</th>
                                     <th className="p-2 text-left">Bid</th>
                                     <th className="p-2 text-left">Price</th>
                                     <th className="p-2 text-left">Qty</th>
                                     <th className="p-2 text-left">Date</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-zinc-800 h-40 overflow-y-auto">
+                            <tbody className="divide-y divide-zinc-800 h-40 overflow-y-auto overflow-x-auto">
                                 {trades.length === 0 ? (
                                     <tr className="border-t border-zinc-700">
                                         <td colSpan={5} className="text-center text-zinc-500 p-4">
@@ -229,7 +229,7 @@ function UserWalletCard() {
                                 ) : (
                                     trades.map(t => (
                                         <tr key={t.id} className="border-t border-zinc-700">
-                                            <td className="p-2">{t.event.title}</td>
+                                            <td className="p-2 min-w-[200px]">{t.event.title}</td>
                                             
                                                 <td >
                                                     

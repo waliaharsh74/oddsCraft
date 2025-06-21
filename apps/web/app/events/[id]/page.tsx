@@ -126,7 +126,7 @@ function TradeDashboard() {
     }
     if (loading) {
         return (
-            <div className='bg-zinc-950 min-h-screen py-24 grid lg:grid-cols-3 gap-4 '>
+            <div className='px-6 bg-zinc-950 min-h-screen py-24 grid lg:grid-cols-3 gap-4 '>
 
                 <div className='col-span-2 flex flex-col'>
 
@@ -140,10 +140,10 @@ function TradeDashboard() {
     }
 
     return (
-        <div className="grid lg:grid-cols-3 gap-4 py-24 min-h-screen bg-zinc-950 text-zinc-200 font-mono">
+        <div className="px-6 flex flex-col gap-8 lg:grid lg:grid-cols-3 lg:gap-4 py-24 min-h-screen bg-zinc-950 text-zinc-200 font-mono">
             <div className="absolute -top-40 -left-40 w-80 h-80 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse"></div>
-            <div className="absolute -bottom-1 -right-32 w-[12rem] h-[12rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse"></div>
-            <div className='col-span-2 flex flex-col'>
+            <div className="absolute lg:-bottom-0 lg:-right-32 bottom-2 right-2 w-[12rem] h-[12rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse" />
+            <div className='col-span-2 flex flex-col gap-4'>
                 <Card className='p-2 bg-[#171717] h-[20%] mb-2'>
                 <CardHeader>
                     <CardTitle className='text-2xl'>
@@ -156,7 +156,7 @@ function TradeDashboard() {
                 </CardHeader>
              
             </Card>
-                <Card className='p-2 bg-[#171717] h-full mt-1'>
+                <Card className='p-2 bg-[#171717] lg:h-full mt-1 h-[200px] overflow-y-auto '>
                 
                 <CardContent className="flex justify-between text-xs p-2">
                     <div className="flex-1 mr-2">
@@ -183,7 +183,6 @@ function TradeDashboard() {
                             </div>
                         ))}
                     </div>
-                    {/* <DepthTable bids={depth.bids} asks={depth.asks} /> */}
                 </CardContent>
             </Card>
             </div>
@@ -200,8 +199,8 @@ function TradeDashboard() {
                 </CardContent>
             </Card> */}
 
-            <Card className='p-2 bg-[#171717] col col-span-1 sticky top-24'>
-                <CardHeader><CardTitle>New Order</CardTitle></CardHeader>
+            <Card className='p-2 bg-[#171717] col col-span-1 sticky top-24 min-h-[350px]'>
+                <CardHeader><CardTitle className='text-xl'>New Order</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                     <CardAction>
                         <ToggleGroup

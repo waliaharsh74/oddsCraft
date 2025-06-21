@@ -34,7 +34,7 @@ const Navbar = () => {
 
     return (
         <nav
-            className={`fixed w-full top-0 left-0 right-0 z-50 py-4 px-6 md:px-10 transition-all duration-300 ${isScrolled ? 'bg-white/80 backdrop-blur-lg shadow-sm' : 'bg-transparent'
+            className={`fixed w-full top-0 left-0 right-0 z-50 py-4 px-6 md:px-10 transition-all duration-300 ${isScrolled ? ' backdrop-blur-lg shadow-sm' : 'bg-transparent'
           }`}
         >
             <div className="max-w-full mx-auto flex items-center justify-between">
@@ -42,12 +42,7 @@ const Navbar = () => {
                     href="/"
                     className="flex items-center space-x-2"
                 >
-                    {/* <div className="w-8 h-8 relative">
-                        <div className="absolute inset-0 bg-blue-500 rounded-md rotate-45 transform -translate-x-1 translate-y-1"></div>
-                        <div className="absolute inset-0 bg-purple-500 rounded-md"></div>
-                    </div> */}
-{/*                     
-                    <span className={`text-2xl font-extrabold tracking-tight ${!isScrolled? '':''}`}>OddsCraft</span> */}
+                   
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500  flex items-center justify-center shadow-md">
                         <span className="text-white font-bold text-xl">OC</span>
                     </div>
@@ -92,11 +87,11 @@ const Navbar = () => {
             </div>
 
             {mobileMenuOpen && (
-                <div className="md:hidden absolute top-full left-0 right-0 bg-white/95 backdrop-blur-lg border-b border-gray-200 shadow-sm p-6 animate-fade-in">
+                <div className="md:hidden absolute top-full left-0 right-0  backdrop-blur-lg border-b border-gray-200 shadow-sm p-6 animate-fade-in">
                     <div className="flex flex-col space-y-5">
                         <Link
                             href="/"
-                            className="text-base font-medium transition-colors hover:text-primary"
+                            className="text-base font-medium transition-colors text-white"
                             onClick={() => setMobileMenuOpen(false)}
                         >
                             Home
