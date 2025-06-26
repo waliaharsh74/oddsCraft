@@ -11,6 +11,7 @@ import {
 } from '@repo/ui/components/card';
 import { Button } from '@repo/ui/components/button';
 import { Skeleton } from "@repo/ui/components/skeleton"
+import { withProtectedRoute } from '../context/withProtectedRoute';
 
 
 type Event = {
@@ -22,7 +23,7 @@ type Event = {
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
-export default function OpenEventsPage() {
+ function OpenEventsPage() {
     const [events, setEvents] = useState<Event[]>([]);
     const [msg, setMsg] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(true);
@@ -78,7 +79,7 @@ export default function OpenEventsPage() {
                         <thead>
                             <tr className="text-zinc-400">
                                 <th className="text-left p-2 min-w-[200px]">Event</th>
-                                <th className="p-2 text-left">Ends</th>
+                                <th className="p-2 text-left hidden">Ends</th>
                                 <th className="p-2 text-left"> View</th>
                             </tr>
                         </thead>
@@ -93,7 +94,7 @@ export default function OpenEventsPage() {
                                             </p>
                                         )}
                                     </td>
-                                    <td className="p-2 whitespace-nowrap">
+                                    <td className="p-2 whitespace-nowrap hidden">
                                         {new Date(ev.endsAt).toLocaleString()}
                                     </td>
                                     <td className="p-2">
@@ -125,3 +126,4 @@ export default function OpenEventsPage() {
         </div>
     );
 }
+export default withProtectedRoute(OpenEventsPage)

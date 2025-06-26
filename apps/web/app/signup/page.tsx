@@ -168,9 +168,9 @@ export default function SignUp() {
                             </g>
                         </svg>
 
-                        <h2 className="text-2xl font-bold mb-4">Join our creative community</h2>
+                        <h2 className="text-2xl font-bold mb-4">Join our trading community</h2>
                         <p className="text-white/80 mb-6">
-                            Shapesmith helps teams visualize ideas, create diagrams, and collaborate in real-time.
+                            Shape Tomorrow with the Power of Your Predictions.
                         </p>
 
                         <div className="grid grid-cols-2 gap-4 max-w-xs mx-auto">
@@ -180,7 +180,7 @@ export default function SignUp() {
                             </div>
                             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-left">
                                 <div className="font-medium mb-1">50,000+</div>
-                                <div className="text-xs text-white/70">Projects created</div>
+                                <div className="text-xs text-white/70">Events created</div>
                             </div>
                         </div>
                     </div>

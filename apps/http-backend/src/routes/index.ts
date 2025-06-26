@@ -33,7 +33,9 @@ function publishTrades(eventId: string, trades: TradeMsg[]) {
 }
 
 const bus = new EventEmitter();
-const pub = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+const pub = new Redis(process.env.REDIS_URL || 'redis://localhost:6379',{
+    retryStrategy: a => Math.min(a * 200, 2_000),
+});
 bus.on('trade', (msg) => {
     pub.xadd('trades', '*', 'data', JSON.stringify(msg));
 });

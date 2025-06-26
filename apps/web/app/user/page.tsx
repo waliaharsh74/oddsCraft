@@ -109,9 +109,9 @@ function UserWalletCard() {
                 {/* <div className='col-span-2 flex flex-col'>
 
                 </div> */}
-                <Skeleton className=" bg-zinc-500 col-span-1 mb-2  rounded-xl"  />
-                    <Skeleton className="col-span-2 rounded-xl bg-zinc-500 mb-2 " />
-                <Skeleton className="col-span-3 rounded-xl bg-zinc-500  " />
+                <Skeleton className="bg-zinc-500 lg:col-span-1 col-span-3 mb-2 rounded-xl"  />
+                <Skeleton className="lg:col-span-2 rounded-xl col-span-3 bg-zinc-500 mb-2 " />
+                <Skeleton className="lg:col-span-3 rounded-xl col-span-3 bg-zinc-500  " />
 
             </div>
         )

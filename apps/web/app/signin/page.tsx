@@ -175,14 +175,14 @@ export default function SignIn() {
                             </g>
                         </svg>
 
-                        <h2 className="text-2xl font-bold mb-4">Welcome back to Shapesmith</h2>
+                        <h2 className="text-2xl font-bold mb-4">Welcome back to Oddscraft</h2>
                         <p className="text-white/80 mb-6">
-                            Continue creating and collaborating on your visual projects with your team.
+                            Craft Your Edge in the Market of Opinions.
                         </p>
 
                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-left">
                             <blockquote className="text-sm italic text-white/90 mb-3">
-                                "Shapesmith has transformed how our team visualizes ideas. The collaborative features are incredibly intuitive."
+                                Oddscraft completely changed the way I think about current events. It's not just fun — it actually rewards you for being informed and thinking ahead
                             </blockquote>
                             <div className="flex items-center">
                                 <div className="w-8 h-8 rounded-full bg-white/20 mr-3"></div>
