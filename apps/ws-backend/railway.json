@@ -2,7 +2,7 @@
     "$schema": "https://railway.com/railway.schema.json",
     "build": {
         "builder": "NIXPACKS",
-        "buildCommand": "pnpm install && pnpm run build",
+        "buildCommand": "/root/.npm-global/bin/pnpm install && /root/.npm-global/bin/pnpm run build",
         "nixpacksPlan": {
             "phases": {
                 "setup": {
@@ -15,14 +15,15 @@
                         "setup"
                     ],
                     "cmds": [
+                        "npm config set prefix /root/.npm-global",
                         "npm install -g pnpm",
-                        "export PATH=$(npm bin -g):$PATH && pnpm install"
+                        "/root/.npm-global/bin/pnpm install"
                     ]
                 }
             }
         }
     },
     "deploy": {
-        "startCommand": "pnpm run start"
+        "startCommand": "/root/.npm-global/bin/pnpm run start"
     }
 }
