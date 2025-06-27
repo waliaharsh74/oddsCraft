@@ -7,8 +7,7 @@
             "phases": {
                 "setup": {
                     "nixPkgs": [
-                        "nodejs",
-                        "corepack"
+                        "nodejs"
                     ]
                 },
                 "install": {
@@ -16,8 +15,7 @@
                         "setup"
                     ],
                     "cmds": [
-                        "corepack enable",
-                        "corepack prepare pnpm@latest --activate",
+                        "npm install -g pnpm",
                         "pnpm install"
                     ]
                 }
