@@ -10,7 +10,7 @@
                         "setup"
                     ],
                     "cmds": [
-                        "pnpm install "
+                        "npm i pnpm && pnpm install"
                     ]
                 }
             }
