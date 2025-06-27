@@ -16,7 +16,7 @@
                     ],
                     "cmds": [
                         "npm install -g pnpm",
-                        "pnpm install"
+                        "export PATH=$(npm bin -g):$PATH && pnpm install"
                     ]
                 }
             }
