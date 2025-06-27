@@ -9,7 +9,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsc --watch",
-    "build": "npx prisma generate client && tsc && npx prisma migrate dev",
+    "build": "npx prisma generate client && tsc",
     "start": "npx prisma generate client"
   },
   "devDependencies": {
