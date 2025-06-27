@@ -9,8 +9,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsc --watch",
-    "build": "tsc",
-    "start": "npx prisma migrate dev"
+    "build": "tsc && npx prisma migrate dev",
+    "start": "npx prisma generate client"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
