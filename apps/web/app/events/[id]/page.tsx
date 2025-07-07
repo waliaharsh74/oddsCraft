@@ -248,7 +248,7 @@ function TradeDashboard() {
                                     <Button
                                         variant="outline"
                                         size="icon"
-                                        onClick={() => setPrice((prev) => Math.max(0.1, prev - 0.5))}
+                                        onClick={() => setPrice((prev) => Math.max(0.1, prev - 0.1))}
                                         className="text-black"
                                         disabled={price <= 0.1}
                                     >
@@ -270,7 +270,7 @@ function TradeDashboard() {
                                     <Button
                                         variant="outline"
                                         size="icon"
-                                        onClick={() => setPrice((prev) => Math.max(9.9, prev + 0.5))}
+                                        onClick={() => setPrice((prev) => Math.min(9.9, prev + 0.1))}
                                         className="text-black"
                                         disabled={price >= 9.9}
                                     >
