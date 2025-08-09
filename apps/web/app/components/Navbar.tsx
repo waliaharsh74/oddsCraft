@@ -2,14 +2,16 @@
 import { useState, useEffect, useContext } from 'react';
 import Link from 'next/link';
 import { Button } from "@repo/ui/components/button";
-import { Menu, UserIcon, X } from 'lucide-react';
+import { Menu, UserIcon, Wallet, X } from 'lucide-react';
 import { AuthContext } from "../context/AuthContext";
 
 import { useRouter } from "next/navigation";
+import useBalance from '../hooks/useBalance';
 
 
 const Navbar = () => {
     const [isScrolled, setIsScrolled] = useState(false);
+    const balance=useBalance()
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const context = useContext(AuthContext);
     if (!context) {
@@ -63,7 +65,14 @@ const Navbar = () => {
                         </Link>
                     </div>}
                     {login && <div className="flex items-center space-x-4">
-
+                        <Link href="/user">
+                            <Button variant="outline" size="sm" className="px-4 hover:cursor-pointer">
+                                <Wallet className='' />
+                              
+                                <div className=''>₹{balance}</div>
+                            </Button>
+                        </Link>
+                        
 
                         <Button size="sm" className="px-4" onClick={handleLogOutNav}>
                             <UserIcon className="h-5 w-5 mr-1" />

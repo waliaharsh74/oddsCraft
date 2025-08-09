@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { prisma, OrderSide, OrderStatus, Role, EventStatus } from "@repo/db"
+import {  OrderSide, OrderStatus } from "@repo/db"
 import { z } from 'zod';
 
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@repo/ui/components/card';
@@ -12,6 +12,7 @@ import axios from 'axios';
 import { withProtectedRoute } from '../context/withProtectedRoute';
 import { Skeleton } from '@repo/ui/components/skeleton';
 import { BadgeCheckIcon } from 'lucide-react';
+import useBalance from '../hooks/useBalance';
 interface TradeMsg {
     id: string; side: OrderSide; pricePaise: number; qty: number; createdAt: string; event: EventLite; 
   }
@@ -31,7 +32,7 @@ const amountSchema = z.number().int().min(10).max(10_000);
 
 const QUICK = [100, 500, 1_000] as const;
 function UserWalletCard() {
-    const [balance, setBalance] = useState<number | null>(null);
+    const balance = useBalance()
     const [custom, setCustom] = useState('');
     const [msg, setMsg] = useState('');
     const [token, setToken] = useState<string | null>(null);
@@ -43,12 +44,10 @@ function UserWalletCard() {
 
     async function refreshAll() {
         try {
-            const [bal, ord, trd] = await Promise.all([
-                axios.get<{ balance: number }>(`${API}/api/v1/me/balance`, headers),
+            const [ ord, trd] = await Promise.all([
                 axios.get<OrderInMem[]>(`${API}/api/v1/me/orders?status=OPEN`, headers),
                 axios.get<TradeMsg[]>(`${API}/api/v1/me/trades`, headers),
             ]);
-            setBalance(bal.data.balance);
             setOrders(ord.data);
             setTrades(trd.data.slice(0, 20));
             setLoading(false)
@@ -72,7 +71,6 @@ function UserWalletCard() {
                 amt:amount
             }, headers)
       
-            setBalance(b => (b ?? 0) + amount);
             setMsg('✅ balance updated');
             setCustom('');
         } catch (e: any) {
