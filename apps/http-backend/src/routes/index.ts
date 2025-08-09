@@ -33,7 +33,7 @@ function publishTrades(eventId: string, trades: TradeMsg[]) {
 }
 
 const bus = new EventEmitter();
-const pub = new Redis(process.env.REDIS_URL || 'redis://localhost:6379',{
+const pub = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
     retryStrategy: a => Math.min(a * 200, 2_000),
 });
 bus.on('trade', (msg) => {
@@ -270,10 +270,10 @@ router.get("/me/orders", async (req: AuthRequest, res) => {
 
         const orders = await prisma.order.findMany({
             where,
-            
+
             orderBy: { createdAt: 'desc' },
-            include:{
-                event:true
+            include: {
+                event: true
             }
         });
         res.json(orders);
@@ -292,8 +292,8 @@ router.get("/me/trades", async (req: AuthRequest, res) => {
             where: { OR: [{ makerId: userId }, { takerId: userId }] },
             orderBy: { createdAt: 'desc' },
             take: 100,
-            include :{
-                event:true
+            include: {
+                event: true
             }
         });
         res.json(trades);
@@ -356,10 +356,17 @@ router.delete("/orders/:id", async (req: AuthRequest, res) => {
             res.status(410).json({ error: "already_matched" });
             return
         }
-        await prisma.order.update({
-            where: { id },
-            data: { status: "CANCELLED", openQty: 0 },
-        });
+        const refund = row.openQty * row.pricePaise;
+        await prisma.$transaction([
+            prisma.user.update({
+                where: { id: row.userId },
+                data: { balancePaise: { increment: refund } },
+            }),
+            prisma.order.update({
+                where: { id },
+                data: { status: "CANCELLED", openQty: 0 },
+            })
+        ]);
 
         publishDepth(row.eventId);
         res.json({ ok: true });
