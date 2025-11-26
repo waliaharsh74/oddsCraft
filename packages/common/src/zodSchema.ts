@@ -18,7 +18,7 @@ export const cancelSchema = z.object({
     params:  z.string().uuid() ,
 });
 export const balanceSchema = z.object({
-    amt: z.number().positive("Amount must be greater than zero")
+    amt: z.number().positive("Amount must be greater than zero").max(10000,"maximum toptup of 10k is allowed")
 });
 export const eventCreateSchema = z.object({
     title: z.string().min(5).max(140),

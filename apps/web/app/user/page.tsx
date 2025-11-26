@@ -14,14 +14,23 @@ import { Skeleton } from '@repo/ui/components/skeleton';
 import { BadgeCheckIcon } from 'lucide-react';
 import useBalance from '../hooks/useBalance';
 interface TradeMsg {
-    id: string; side: OrderSide; pricePaise: number; qty: number; createdAt: string; event: EventLite; 
-  }
+    id: string;
+    side: OrderSide;
+    pricePaise: string;
+    price: number;
+    decimal: number;
+    qty: number;
+    createdAt: string;
+    event: EventLite;
+}
 interface EventLite { id: string; title: string; status: OrderStatus }
 
 interface OrderInMem {
     id: string;
     side: OrderSide;
-    pricePaise: number;
+    pricePaise: string;
+    price: number;
+    decimal: number;
     qty: number;
     openQty: number;
     status: OrderStatus;
@@ -32,7 +41,7 @@ const amountSchema = z.number().int().min(10).max(10_000);
 
 const QUICK = [100, 500, 1_000] as const;
 function UserWalletCard() {
-    const balance = useBalance()
+    const { balance, refreshBalance } = useBalance()
     const [custom, setCustom] = useState('');
     const [msg, setMsg] = useState('');
     const [token, setToken] = useState<string | null>(null);
@@ -53,7 +62,7 @@ function UserWalletCard() {
             setLoading(false)
         } catch {
             
-            setMsg('⚠︎ could not fetch data'); 
+            setMsg('could not fetch data'); 
             setLoading(false)
         }
     }
@@ -62,23 +71,25 @@ function UserWalletCard() {
     useEffect(() => { setToken(localStorage.getItem('oddsCraftToken')); }, []);
     useEffect(() => { if (token) refreshAll(); }, [token]);
 
- 
+  
   
     async function topUp(amount: number) {
-        setMsg('processing…');
+        if (!token) { setMsg('please sign in again'); return; }
+        setMsg('processing...');
         try {
             await axios.post(`${API}/api/v1/wallet/topup`,{
                 amt:amount
             }, headers)
       
-            setMsg('✅ balance updated');
+            setMsg('Balance updated');
             setCustom('');
+            refreshBalance();
         } catch (e: any) {
             setMsg(e.response?.data?.error || 'server error');
         }
     }
-   
-    const rup = (p: number) => (p / 100).toFixed(1);
+
+    const rup = (p: number, decimal = 2) => p.toFixed(Math.min(decimal, 2));
 
     function StatusBadge({ s }: { s: OrderStatus }) {
         const clr =
@@ -94,7 +105,7 @@ function UserWalletCard() {
         const amt = Number(custom);
         const valid = amountSchema.safeParse(amt);
         if (!valid.success) {
-            setMsg('enter amount between 10 – 10 000');
+            setMsg('enter amount between 10 and 10,000');
             return;
         }
         topUp(amt);
@@ -127,7 +138,7 @@ function UserWalletCard() {
                 <CardContent className="space-y-6">
                     
                     <div className="text-4xl font-extrabold text-emerald-400">
-                        {balance === null ? '—' : `₹${balance.toFixed(2)}`}
+                        {balance === null ? '₹ --' : `₹${balance.toFixed(2)}`}
                     </div>
 
                 
@@ -189,7 +200,7 @@ function UserWalletCard() {
                                                     {o.side}
                                                 </Badge>
                                             </td>
-                                            <td className="p-2">₹{rup(o.pricePaise)}</td>
+                                            <td className="p-2">₹{rup(o.price, o.decimal)}</td>
                                             <td className="p-2">{o.openQty}</td>
                                             <td className="p-2">  <Badge variant="secondary">{o.status}</Badge> </td>
                                         </tr>
@@ -240,7 +251,7 @@ function UserWalletCard() {
                                                     </Badge>
                                                 </td>
                                             
-                                            <td className="p-2">₹{rup(t.pricePaise)}</td>
+                                            <td className="p-2">₹{rup(t.price, t.decimal)}</td>
                                             <td className="p-2">{t.qty}</td>
                                             <td className="p-2 text-xs text-zinc-400">{new Date(t.createdAt).toLocaleDateString()}</td>
                                         </tr>

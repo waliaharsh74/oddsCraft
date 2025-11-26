@@ -14,16 +14,16 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  role         Role  @default(MEMBER)
-  passwordHash String
-  balancePaise BigInt   @default(0)
-  createdAt    DateTime @default(now())
-
-  orders        Order[] @relation("UserOrders")
-  tradesAsMaker Trade[] @relation("MakerTrades")
-  tradesAsTaker Trade[] @relation("TakerTrades")
+  id            String   @id @default(uuid())
+  email         String   @unique
+  role          Role     @default(MEMBER)
+  passwordHash  String
+  balancePaise  String   @default("100000")
+  createdAt     DateTime @default(now())
+  decimal       Int      @default(2)
+  orders        Order[]  @relation("UserOrders")
+  tradesAsMaker Trade[]  @relation("MakerTrades")
+  tradesAsTaker Trade[]  @relation("TakerTrades")
 }
 
 enum OrderSide {
@@ -36,6 +36,13 @@ enum OrderStatus {
   FILLED
   CANCELLED
 }
+
+enum OutcomeStaus {
+  YES
+  NO
+  DISPUTED
+}
+
 enum Role {
   ADMIN
   MEMBER
@@ -45,14 +52,15 @@ model Order {
   id         String      @id @default(uuid())
   userId     String
   side       OrderSide
-  pricePaise Int
+  pricePaise String
+  decimal    Int         @default(2)
   qty        Int
   openQty    Int
   status     OrderStatus
   createdAt  DateTime    @default(now())
 
-  user User @relation("UserOrders", fields: [userId], references: [id])
-  event Event @relation("EventOrders",fields: [eventId],references: [id])
+  user    User   @relation("UserOrders", fields: [userId], references: [id])
+  event   Event  @relation("EventOrders", fields: [eventId], references: [id])
   eventId String
 
   makerTrades     Trade[] @relation("MakerOrder")
@@ -62,19 +70,21 @@ model Order {
 }
 
 model Trade {
-  id               String   @id @default(uuid())
+  id               String @id @default(uuid())
   orderAggressorId String
   makerOrderId     String
-  pricePaise       Int
-  side             OrderSide
-  qty              Int
-  takerId          String
-  makerId          String
-  createdAt        DateTime @default(now())
-  eventId         String
-  event Event @relation("EventTrades",fields: [eventId],references: [id])
-  aggressorOrder Order @relation("AggressorOrder", fields: [orderAggressorId], references: [id])
-  makerOrder     Order @relation("MakerOrder", fields: [makerOrderId], references: [id])
+  pricePaise       String
+  decimal          Int    @default(2)
+
+  side           OrderSide
+  qty            Int
+  takerId        String
+  makerId        String
+  createdAt      DateTime  @default(now())
+  eventId        String
+  event          Event     @relation("EventTrades", fields: [eventId], references: [id])
+  aggressorOrder Order     @relation("AggressorOrder", fields: [orderAggressorId], references: [id])
+  makerOrder     Order     @relation("MakerOrder", fields: [makerOrderId], references: [id])
 
   maker User @relation("MakerTrades", fields: [makerId], references: [id])
   taker User @relation("TakerTrades", fields: [takerId], references: [id])
@@ -82,24 +92,39 @@ model Trade {
   @@index([makerId])
   @@index([takerId])
 }
-enum EventStatus { 
-  OPEN 
-  CLOSED 
+
+enum EventStatus {
+  OPEN
+  CLOSED
   SETTLED
 }
 
+enum DisputeStatus {
+  RESOLVED
+  INREVIEW
+}
 
 model Event {
-  id          String      @id @default(uuid())
+  id          String        @id @default(uuid())
   title       String
   description String?
   startsAt    DateTime
   endsAt      DateTime
-  status      EventStatus @default(OPEN)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  orders      Order[]     @relation("EventOrders")
-  trade       Trade[] @relation("EventTrades")
+  status      EventStatus   @default(OPEN)
+  outcome     OutcomeStaus?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  orders      Order[]       @relation("EventOrders")
+  trade       Trade[]       @relation("EventTrades")
+  dispute     Dispute?
 
   @@index([status, endsAt])
+}
+
+model Dispute {
+  id      String        @id @default(uuid())
+  eventId String        @unique
+  reason  String
+  event   Event         @relation(fields: [eventId], references: [id])
+  status  DisputeStatus @default(INREVIEW)
 }

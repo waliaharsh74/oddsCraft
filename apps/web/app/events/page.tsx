@@ -21,7 +21,7 @@ type Event = {
     description?: string | null;
 };
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
  function OpenEventsPage() {
     const [events, setEvents] = useState<Event[]>([]);
@@ -32,7 +32,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
         const fetchEvents = async () => {
             const token = localStorage.getItem('oddsCraftToken');
             if (!token) {
-                setMsg('⚠︎ please sign in');
+                setMsg('please sign in');
                 setLoading(false);
                 return;
             }

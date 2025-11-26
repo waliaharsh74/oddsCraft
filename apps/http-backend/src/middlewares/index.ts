@@ -1,32 +1,44 @@
-import jwt from "jsonwebtoken";
-import { NextFunction, Request, Response } from "express";
-import { AuthRequest } from "../interfaces";
-const JWT_SECRET = process.env.JWT_SECRET || "changeme";
+import { AUTH_TOKEN } from "@repo/common"
+import { NextFunction, Response } from "express"
+import { AuthRequest } from "../interfaces"
+import { verifyToken } from "../helper"
+import { logger } from "../lib/logger"
+
+const getAuthToken = (req: AuthRequest) => {
+    const header = req.get("authorization")
+    if (header?.toLowerCase().startsWith("bearer ")) {
+        return header.slice("bearer ".length).trim()
+    }
+    return req.cookies?.[AUTH_TOKEN]
+}
 
 export const auth = (req: AuthRequest, res: Response, next: NextFunction) => {
-    const h = req.headers.authorization;
+    const token = getAuthToken(req)
 
-    if (!h?.startsWith("Bearer ")) {
-        res.status(401).json({ error: "auth" });
+    if (!token) {
+        res.status(401).json({ success: false, error: { code: "auth_token_missing", message: "Auth token not found" } })
         return
     }
     try {
-        const {uid} = jwt.verify(h.slice(7), JWT_SECRET) as {uid:string};
-        const parsed=JSON.parse(uid)
-        req.userId = parsed.id;
-        req.role = parsed.role;
-        next();
-    } catch { res.status(401).json({ error: "auth" }); return }
-};
+        const payload = verifyToken(AUTH_TOKEN, token)
+        req.userId = payload.id
+        req.role = payload.role
+        next()
+    } catch (error) {
+        logger.warn({ err: error }, "Invalid auth token")
+        res.status(401).json({ success: false, error: { code: "auth_token_invalid", message: "Invalid or expired auth token" } })
+    }
+}
+
 export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-        if (req.role !== 'ADMIN') { res.status(403).json({ error: 'forbidden' }); return }
-        next();
+        if (req.role !== "ADMIN") {
+            res.status(403).json({ success: false, error: { code: "forbidden", message: "Admin access required" } })
+            return
+        }
+        next()
     } catch (error) {
-        res.status(500).json({ error: "Internal Server Error" }); return
+        logger.error({ err: error }, "Admin guard failed")
+        res.status(500).json({ success: false, error: { code: "admin_guard_error", message: "Internal Server Error" } })
     }
-
-
-  }
-
-export const sign = (uid: string) => jwt.sign({ uid }, JWT_SECRET, { expiresIn: "7d" });
+}

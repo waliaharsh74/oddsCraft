@@ -11,7 +11,7 @@ import useBalance from '../hooks/useBalance';
 
 const Navbar = () => {
     const [isScrolled, setIsScrolled] = useState(false);
-    const balance=useBalance()
+    const { balance } = useBalance()
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const context = useContext(AuthContext);
     if (!context) {
@@ -69,7 +69,7 @@ const Navbar = () => {
                             <Button variant="outline" size="sm" className="px-4 hover:cursor-pointer">
                                 <Wallet className='' />
                               
-                                <div className=''>₹{balance}</div>
+                                <div className=''>₹{balance === null ? '--' : balance.toFixed(2)}</div>
                             </Button>
                         </Link>
                         

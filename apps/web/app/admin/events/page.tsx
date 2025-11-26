@@ -1,5 +1,5 @@
 'use client';
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { z } from 'zod';
 import { Card, CardHeader, CardTitle, CardContent } from '@repo/ui/components/card';
 import { Button } from '@repo/ui/components/button';
@@ -22,22 +22,31 @@ export default function AdminEvents() {
     const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
     useEffect(() => {
-        const fetchData=async()=>{
-            const {data}=await axios.get(`${API_BASE}/api/v1/admin/event`,{
-                headers:{
-                    Authorization: `Bearer ${userToken}`
-                }
-            })
-            setEvents(data)
+        const storedToken = localStorage.getItem('oddsCraftToken');
+        setToken(storedToken);
+        if (!storedToken) {
+            setMsg('sign in to manage events');
+            return;
         }
-        const userToken=localStorage.getItem('oddsCraftToken')
-        setToken(userToken)
-        fetchData()
-    },[]);
+        const fetchData = async () => {
+            try {
+                const { data } = await axios.get(`${API_BASE}/api/v1/admin/event`, {
+                    headers: {
+                        Authorization: `Bearer ${storedToken}`
+                    }
+                });
+                setEvents(data);
+            } catch {
+                setMsg('could not load events');
+            }
+        };
+        fetchData();
+    }, []);
 
     async function create() {
         // const ok = formSchema.safeParse(form);
         // if (!ok.success) { setMsg('fill both fields'); return; }
+        if (!token) { setMsg('sign in to create events'); return; }
         const { data } = await axios.post(`${ API_BASE }/api/v1/admin/event`, { ...form, endsAt: new Date(form.endsAt) }, {
             headers: {
                 Authorization: `Bearer ${token}`
@@ -47,7 +56,7 @@ export default function AdminEvents() {
     }
 
     async function close(id: string) {
-        console.log("object");
+        if (!token) { setMsg('sign in to update events'); return; }
         await axios.post(`${ API_BASE }/api/v1/admin/event/${id}`, { status: 'CLOSED' }, {
             headers: {
                 Authorization: `Bearer ${token}`

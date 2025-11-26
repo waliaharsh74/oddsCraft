@@ -1,5 +1,5 @@
 'use client';
-import  { useEffect, useMemo, useState } from 'react'
+import  { useCallback, useEffect, useMemo, useState } from 'react'
 
 import axios from 'axios';
 
@@ -9,29 +9,29 @@ import axios from 'axios';
 
 
 const useBalance = () => {
-    const [balance, setBalance] = useState<number | null>(0);
+    const [balance, setBalance] = useState<number | null>(null);
     const [token, setToken] = useState<string | null>(null);
 
     const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
     const headers = useMemo(() => ({ headers: { Authorization: `Bearer ${token}` } }), [token]);
 
-    async function getBalance() {
+    const fetchBalance = useCallback(async () => {
+        if (!token) return;
         try {
-            const bal = await axios.get<{ balance: number }>(`${API}/api/v1/me/balance`, headers)
+            const bal = await axios.get<{ balance: number; balancePaise: string; decimal: number }>(`${API}/api/v1/me/balance`, headers)
             setBalance(bal.data.balance);
         } catch (error) {
             console.log(error);
         }
-    }
+    }, [API, headers, token]);
+
     useEffect(() => { setToken(localStorage.getItem('oddsCraftToken')); }, []);
-    useEffect(() => { if (token) getBalance(); }, [token]);
+    useEffect(() => { if (token) fetchBalance(); }, [token, fetchBalance]);
 
-
-    
-
-    return (
-       balance
-    )
+    return {
+        balance,
+        refreshBalance: fetchBalance
+    }
 }
 
 export default useBalance
