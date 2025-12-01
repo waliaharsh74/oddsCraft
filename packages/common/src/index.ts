@@ -1,7 +1,7 @@
 import type { Side, OrderInMem, TradeMsg } from "./types"
 import { OrderBook, BookLevel } from "./classes"
 import { signupSchema, signinSchema, cancelSchema, orderSchema, balanceSchema, eventCreateSchema, eventUpdateSchema, EventSchema } from "./zodSchema"
-import { AUTH_TOKEN, REFRESH_TOKEN } from "./constants"
+import { AUTH_TOKEN, REFRESH_TOKEN, USER_ID } from "./constants"
 export {
     Side,
     OrderInMem,
@@ -17,6 +17,7 @@ export {
     eventUpdateSchema,
     EventSchema,
     AUTH_TOKEN,
-    REFRESH_TOKEN
+    REFRESH_TOKEN,
+    USER_ID
 
 }

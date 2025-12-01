@@ -1,27 +1,32 @@
 "use client"
-import { useState, useEffect, useContext } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from "@repo/ui/components/button";
 import { Menu, UserIcon, Wallet, X } from 'lucide-react';
-import { AuthContext } from "../context/AuthContext";
-
 import { useRouter } from "next/navigation";
 import useBalance from '../hooks/useBalance';
+import { useAuthStore } from '../store/useAuthStore';
+import { useShallow } from 'zustand/react/shallow'
 
 
 const Navbar = () => {
     const [isScrolled, setIsScrolled] = useState(false);
     const { balance } = useBalance()
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const context = useContext(AuthContext);
-    if (!context) {
-        return null;
-    }
-    const { login, handleLogOut } = context
+    const { isAuthenticated, logout, initialize, initialized } = useAuthStore(useShallow((state) => ({
+        isAuthenticated: state.isAuthenticated,
+        logout: state.logout,
+        initialize: state.initialize,
+        initialized: state.initialized,
+    })))
     const router = useRouter();
 
-    const handleLogOutNav = () => {
-        handleLogOut();
+    useEffect(() => {
+        initialize()
+    }, [initialize])
+
+    const handleLogOutNav = async () => {
+        await logout();
         router.push('/')
     }
 
@@ -32,7 +37,7 @@ const Navbar = () => {
 
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
-    }, [login]);
+    }, []);
 
     return (
         <nav
@@ -52,7 +57,7 @@ const Navbar = () => {
 
                 <div className="hidden md:flex items-center space-x-8">
 
-                    {!login && <div className="flex items-center space-x-4">
+                    {!isAuthenticated && initialized && <div className="flex items-center space-x-4">
                         <Link href="/signin">
                             <Button variant="outline" size="sm" className="px-4 hover:cursor-pointer">
                                 Sign In
@@ -64,7 +69,7 @@ const Navbar = () => {
                             </Button>
                         </Link>
                     </div>}
-                    {login && <div className="flex items-center space-x-4">
+                    {isAuthenticated && initialized && <div className="flex items-center space-x-4">
                         <Link href="/user">
                             <Button variant="outline" size="sm" className="px-4 hover:cursor-pointer">
                                 <Wallet className='' />
@@ -106,7 +111,7 @@ const Navbar = () => {
                             Home
                         </Link>
 
-                        {!login && <div className="pt-2 flex flex-col space-y-3">
+                        {!isAuthenticated && initialized && <div className="pt-2 flex flex-col space-y-3">
                             <Link
                                 href="/signin"
                                 onClick={() => setMobileMenuOpen(false)}
@@ -120,9 +125,9 @@ const Navbar = () => {
                                 <Button className="w-full">Sign Up</Button>
                             </Link>
                         </div>}
-                        {login && <div className="pt-2 flex flex-col space-y-3">
+                        {isAuthenticated && initialized && <div className="pt-2 flex flex-col space-y-3">
 
-                            <Button className="w-full " onClick={handleLogOut}><UserIcon className="h-5 w-5 mr-1" />
+                            <Button className="w-full " onClick={handleLogOutNav}><UserIcon className="h-5 w-5 mr-1" />
                                 Logout</Button>
                         </div>}
                     </div>

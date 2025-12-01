@@ -13,7 +13,8 @@ import { Button } from "@repo/ui/components/button";
 import { Input } from "@repo/ui/components/input";
 import { Label } from "@repo/ui/components/label";
 import axios from "axios"
-import { HTTP_BACKEND_URL } from "../config"
+import { useAuthStore } from "../store/useAuthStore"
+import { useShallow } from "zustand/react/shallow"
 
 interface signUpError {
     
@@ -26,9 +27,12 @@ export default function SignUp() {
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [err, setErr] = useState<signUpError>({})
-    const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
 
+    const { signup } = useAuthStore(useShallow((state) => ({
+        signup: state.signup,
+    })))
 
     const router = useRouter()
 
@@ -38,32 +42,29 @@ export default function SignUp() {
             const parsedData = signupSchema.safeParse({
                 email, password
             })
-            if (parsedData.error) {
+            if (!parsedData.success) {
                 setErr(parsedData.error.flatten().fieldErrors)
                 return
             }
-            setLoading(true);
+            setErr({})
 
-            const result = await axios.post(`${HTTP_BACKEND_URL}/api/v1/auth/signup`, {
-                email, password
-            })
-            toast.success(result.data?.msg);
+            setLoading(true)
+            await signup(email, password)
+            toast.success("Account created successfully!");
             setTimeout(() => {
-                setLoading(false);
-                if (result.data?.id) {
-                    router.push("/signin")
-                }
-            }, 1500);
+                router.push("/events")
+            }, 800);
 
         } catch (error) {
             console.log(error);
-            setLoading(false)
             if (axios.isAxiosError(error)) {
                 const message = error.response?.data?.error || error.message || "Oops! Something went wrong.";
                 toast.error(message);
             } else {
                 toast("An unexpected error occurred.");
             }
+        } finally {
+            setLoading(false)
         }
 
 

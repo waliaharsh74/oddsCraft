@@ -3,14 +3,13 @@ import { prisma, OrderSide, OrderStatus } from "@repo/db"
 import Redis from "ioredis"
 
 import { randomUUID } from "crypto"
-import { TradeMsg, OrderBook, signupSchema, signinSchema, cancelSchema, orderSchema, balanceSchema, eventCreateSchema, eventUpdateSchema, EventSchema, REFRESH_TOKEN } from "@repo/common"
-import bcrypt from "bcryptjs"
+import { TradeMsg, OrderBook, cancelSchema, orderSchema, balanceSchema, eventCreateSchema, eventUpdateSchema, EventSchema } from "@repo/common"
 
 import { EventEmitter } from "events"
 import { auth, requireAdmin } from "../middlewares"
 import { AuthRequest } from "../interfaces"
-import { setAuthCookies, verifyToken } from "../helper"
 import { logger } from "../lib/logger"
+import authRouter from "./auth"
 const router: Router = express.Router()
 
 const books = new Map<string, OrderBook>()
@@ -67,68 +66,8 @@ router.get("/hello", async (_req, res) => {
 
 
 })
-router.post("/auth/signup", async (req, res) => {
-    try {
-        const result = signupSchema.safeParse(req.body)
-        if (!result.success) {
-            res.status(400).json({ error: result.error.flatten() })
-            return
-        }
-        const { email, password } = req.body as { email: string, password: string }
-        const exists = await prisma.user.findUnique({ where: { email } })
-        if (exists) { res.status(400).json({ error: "email already registered" }); return }
-        const user = await prisma.user.create({ data: { email, passwordHash: await bcrypt.hash(password, 10) } })
-        res.status(201).json({
-            id: user.id,
-            msg: "User Registered Successfully!"
-        })
-    } catch (error) {
-        logger.error({ err: error }, "Signup failed")
-        res.status(500).json({ error: "Internal Server Error" })
-    }
 
-})
-router.post("/auth/signin", async (req, res) => {
-    try {
-        const result = signinSchema.safeParse(req.body)
-        if (!result.success) {
-            res.status(400).json({ error: result.error.flatten() })
-            return
-        }
-        const { email, password } = req.body
-        const user = await prisma.user.findUnique({ where: { email } })
-        if (!user || !(await bcrypt.compare(password, user.passwordHash))) { res.status(401).json({ error: "Invalid Credentials" }); return }
-        const payload = {
-            id: user.id,
-            role: user.role
-        }
-        const tokens = setAuthCookies(res, payload)
-        res.status(200).json({
-            msg: "Welcome Back!",
-            token: tokens.accessToken,
-            refreshToken: tokens.refreshToken
-        })
-    } catch (error) {
-        logger.error({ err: error }, "Signin failed")
-        res.status(500).json({ error: "Internal Server Error" })
-    }
-})
-
-router.post("/auth/refresh", async (req, res) => {
-    const refreshToken = req.cookies?.[REFRESH_TOKEN]
-    if (!refreshToken) {
-        res.status(401).json({ error: "refresh_token_missing" })
-        return
-    }
-    try {
-        const payload = verifyToken(REFRESH_TOKEN, refreshToken)
-        const tokens = setAuthCookies(res, { id: payload.id, role: payload.role })
-        res.status(200).json({ msg: "Tokens refreshed", token: tokens.accessToken, refreshToken: tokens.refreshToken })
-    } catch (error) {
-        logger.warn({ err: error }, "Refresh token invalid")
-        res.status(401).json({ error: "refresh_token_invalid" })
-    }
-})
+router.use("/auth", authRouter)
 
 router.use(auth)
 router.get("/events", async (req, res) => {

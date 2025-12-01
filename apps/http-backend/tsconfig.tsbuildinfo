@@ -1,1 +1,1 @@
-{"root":["./src/index.ts","./src/interfaces/index.ts","./src/middlewares/index.ts","./src/routes/index.ts"],"version":"5.8.2"}
+{"root":["./src/index.ts","./src/config/env.ts","./src/helper/index.ts","./src/interfaces/index.ts","./src/lib/logger.ts","./src/middlewares/error.ts","./src/middlewares/index.ts","./src/routes/index.ts"],"version":"5.8.2"}

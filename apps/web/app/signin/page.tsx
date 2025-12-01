@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useContext, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import {  toast, ToastContainer } from 'react-toastify';
 import {  signinSchema } from "@repo/common";
@@ -10,12 +10,11 @@ import {  Eye, EyeOff } from 'lucide-react';
 import { Button } from "@repo/ui/components/button";
 import { Input } from "@repo/ui/components/input";
 import { Label } from "@repo/ui/components/label";
-import { AuthContext } from "../context/AuthContext";
-import 'dotenv/config'
 
 
 import axios from "axios"
-import { HTTP_BACKEND_URL } from "../config";
+import { useAuthStore } from "../store/useAuthStore";
+import { useShallow } from "zustand/react/shallow";
 
 interface signInError{
     email?: string[] | undefined;
@@ -25,14 +24,12 @@ interface signInError{
 export default function SignIn() {
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
-    const [loading, setLoading] = useState(false);
 
     const [showPassword, setShowPassword] = useState(false);
-    const context = useContext(AuthContext);
-    if (!context) {
-        return null;
-    }
-    const { setLogin } = context;
+    const [loading, setLoading] = useState(false);
+    const { login } = useAuthStore(useShallow((state) => ({
+        login: state.login,
+    })))
    
     const [err, setErr] = useState<signInError>({})
     const router = useRouter()
@@ -43,35 +40,27 @@ export default function SignIn() {
             const parsedData = signinSchema.safeParse({
                 email, password
             })
-            if (parsedData.error) {
+            if (!parsedData.success) {
                 setErr(parsedData.error.flatten().fieldErrors)
                 return
             }
-            setLoading(true);
+            setErr({})
 
-            const result = await axios.post(`${HTTP_BACKEND_URL}/api/v1/auth/signin`, {
-                email, password
-            })
-            toast.success(result.data?.msg);
-            setTimeout(() => {
-                
-                setLoading(false);
-                if (result.data?.token){
-                    localStorage.setItem("oddsCraftToken", result.data?.token)
-                    setLogin(true);
-                    router.push('/events')
-                }
-            }, 1500);
+            setLoading(true)
+            await login(email, password)
+            toast.success("Welcome back!");
+            setTimeout(() => router.push('/events'), 800);
             
         } catch (error) {
             console.log(error);
             if (axios.isAxiosError(error)) {
                 const message = error.response?.data?.error || error.message || "Oops! Something went wrong.";
                 toast.error(message);
+                setLoading(false)
             } else {
                 toast("An unexpected error occurred.");
+                setLoading(false)
             }
-            setLoading(false)
         }
         
         

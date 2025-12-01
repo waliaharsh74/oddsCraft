@@ -17,12 +17,19 @@ const baseCookieOptions = {
 
 export const accessTokenCookieOptions = {
     ...baseCookieOptions,
+    httpOnly: false,
     maxAge: 15 * 60 * 1000, 
 }
 
 export const refreshTokenCookieOptions = {
     ...baseCookieOptions,
     maxAge: 7 * 24 * 60 * 60 * 1000, 
+}
+
+export const userIdCookieOptions = {
+    ...baseCookieOptions,
+    httpOnly: false,
+    maxAge: refreshTokenCookieOptions.maxAge,
 }
 
 export const corsOptions: CorsOptions = {
@@ -35,5 +42,6 @@ export const corsOptions: CorsOptions = {
 export {
     ACCESS_JWT_SECRET,
     REFRESH_JWT_SECRET,
-    FRONTEND_URL
+    FRONTEND_URL,
+    
 }

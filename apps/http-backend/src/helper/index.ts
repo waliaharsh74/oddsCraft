@@ -1,9 +1,8 @@
 import jwt from "jsonwebtoken"
 import dotenv from "dotenv"
 import type { Response } from "express"
-import { AUTH_TOKEN, REFRESH_TOKEN } from "@repo/common"
-import { accessTokenCookieOptions, refreshTokenCookieOptions, ACCESS_JWT_SECRET, REFRESH_JWT_SECRET } from "../config/env"
-import { string } from "zod/v4"
+import { AUTH_TOKEN, REFRESH_TOKEN, USER_ID } from "@repo/common"
+import { accessTokenCookieOptions, refreshTokenCookieOptions, ACCESS_JWT_SECRET, REFRESH_JWT_SECRET, userIdCookieOptions } from "../config/env"
 
 dotenv.config()
 
@@ -33,6 +32,7 @@ export const setAuthCookies = (res: Response, payload: TokenPayload) => {
 
     res.cookie(AUTH_TOKEN, accessToken, accessTokenCookieOptions)
     res.cookie(REFRESH_TOKEN, refreshToken, refreshTokenCookieOptions)
+    res.cookie(USER_ID, payload.id, userIdCookieOptions)
 
     return { accessToken, refreshToken }
 }
@@ -40,4 +40,5 @@ export const setAuthCookies = (res: Response, payload: TokenPayload) => {
 export const clearAuthCookies = (res: Response) => {
     res.clearCookie(AUTH_TOKEN, accessTokenCookieOptions)
     res.clearCookie(REFRESH_TOKEN, refreshTokenCookieOptions)
+    res.clearCookie(USER_ID, userIdCookieOptions)
 }

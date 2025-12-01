@@ -1,28 +1,35 @@
-import { useContext, useEffect } from "react";
+'use client'
+
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AuthContext } from "./AuthContext";
-import {SkeletonLoader}  from "../components/Skeleton";
+import { SkeletonLoader } from "../components/Skeleton";
+import { useAuthStore } from "../store/useAuthStore";
 
 export const withProtectedRoute = (WrappedComponent: any) => {
     return (props: any) => {
-        const context = useContext(AuthContext);
-        if (!context) {
-            return null;
-        }
-        const { login, isCheckingAuth } = context; 
+        const { isAuthenticated, isLoading, initialized } = useAuthStore((state) => ({
+            isAuthenticated: state.isAuthenticated,
+            isLoading: state.isLoading,
+            initialized: state.initialized,
+        }))
+        const initialize = useAuthStore((state) => state.initialize)
         const router = useRouter();
 
         useEffect(() => {
-            if (!isCheckingAuth && !login) {
-                router.push("/signin");
-            }
-        }, [login, isCheckingAuth, router]);
+            initialize()
+        }, [initialize])
 
-        if (isCheckingAuth) {
+        useEffect(() => {
+            if (initialized && !isLoading && !isAuthenticated) {
+                router.replace("/signup");
+            }
+        }, [initialized, isAuthenticated, isLoading, router]);
+
+        if (!initialized || isLoading) {
             return <SkeletonLoader /> 
         }
 
-        if (!login) {
+        if (!isAuthenticated) {
             return null; 
         }
 

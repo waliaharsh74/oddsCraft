@@ -4,7 +4,7 @@ import { AuthRequest } from "../interfaces"
 import { verifyToken } from "../helper"
 import { logger } from "../lib/logger"
 
-const getAuthToken = (req: AuthRequest) => {
+export const getAuthToken = (req: AuthRequest) => {
     const header = req.get("authorization")
     if (header?.toLowerCase().startsWith("bearer ")) {
         return header.slice("bearer ".length).trim()
@@ -21,6 +21,7 @@ export const auth = (req: AuthRequest, res: Response, next: NextFunction) => {
     }
     try {
         const payload = verifyToken(AUTH_TOKEN, token)
+        
         req.userId = payload.id
         req.role = payload.role
         next()

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {  OrderSide, OrderStatus } from "@repo/db"
 import { z } from 'zod';
 
@@ -8,11 +8,12 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@repo/ui/c
 import { Badge  } from '@repo/ui/components/badge';
 import { Button } from '@repo/ui/components/button';
 import { Input } from '@repo/ui/components/input';
-import axios from 'axios';
 import { withProtectedRoute } from '../context/withProtectedRoute';
 import { Skeleton } from '@repo/ui/components/skeleton';
 import { BadgeCheckIcon } from 'lucide-react';
 import useBalance from '../hooks/useBalance';
+import apiClient from '../lib/api-client';
+import { useAuthStore } from '../store/useAuthStore';
 interface TradeMsg {
     id: string;
     side: OrderSide;
@@ -44,18 +45,22 @@ function UserWalletCard() {
     const { balance, refreshBalance } = useBalance()
     const [custom, setCustom] = useState('');
     const [msg, setMsg] = useState('');
-    const [token, setToken] = useState<string | null>(null);
     const [orders, setOrders] = useState<OrderInMem[]>([]);
     const [trades, setTrades] = useState<TradeMsg[]>([]);
     const[loading,setLoading]=useState<boolean>(true)
-    const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-    const headers = useMemo(() => ({ headers: { Authorization: `Bearer ${token}` } }), [token]);
+    const { isAuthenticated } = useAuthStore((state) => ({
+        isAuthenticated: state.isAuthenticated,
+    }))
 
-    async function refreshAll() {
+    const refreshAll = useCallback(async () => {
+        if (!isAuthenticated) {
+            setLoading(false)
+            return
+        }
         try {
             const [ ord, trd] = await Promise.all([
-                axios.get<OrderInMem[]>(`${API}/api/v1/me/orders?status=OPEN`, headers),
-                axios.get<TradeMsg[]>(`${API}/api/v1/me/trades`, headers),
+                apiClient.get<OrderInMem[]>(`/api/v1/me/orders?status=OPEN`),
+                apiClient.get<TradeMsg[]>(`/api/v1/me/trades`),
             ]);
             setOrders(ord.data);
             setTrades(trd.data.slice(0, 20));
@@ -65,21 +70,20 @@ function UserWalletCard() {
             setMsg('could not fetch data'); 
             setLoading(false)
         }
-    }
+    }, [isAuthenticated])
 
 
-    useEffect(() => { setToken(localStorage.getItem('oddsCraftToken')); }, []);
-    useEffect(() => { if (token) refreshAll(); }, [token]);
+    useEffect(() => { if (isAuthenticated) { refreshAll(); } }, [isAuthenticated, refreshAll]);
 
   
   
     async function topUp(amount: number) {
-        if (!token) { setMsg('please sign in again'); return; }
+        if (!isAuthenticated) { setMsg('please sign in again'); return; }
         setMsg('processing...');
         try {
-            await axios.post(`${API}/api/v1/wallet/topup`,{
+            await apiClient.post(`/api/v1/wallet/topup`,{
                 amt:amount
-            }, headers)
+            })
       
             setMsg('Balance updated');
             setCustom('');

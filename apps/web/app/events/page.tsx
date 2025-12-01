@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import Link from 'next/link';
 import {
     Card,
@@ -12,6 +11,7 @@ import {
 import { Button } from '@repo/ui/components/button';
 import { Skeleton } from "@repo/ui/components/skeleton"
 import { withProtectedRoute } from '../context/withProtectedRoute';
+import apiClient from '../lib/api-client';
 
 
 type Event = {
@@ -21,8 +21,6 @@ type Event = {
     description?: string | null;
 };
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
  function OpenEventsPage() {
     const [events, setEvents] = useState<Event[]>([]);
     const [msg, setMsg] = useState<string>('');
@@ -30,17 +28,8 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
     useEffect(() => {
         const fetchEvents = async () => {
-            const token = localStorage.getItem('oddsCraftToken');
-            if (!token) {
-                setMsg('please sign in');
-                setLoading(false);
-                return;
-            }
-
             try {
-                const res = await axios.get<Event[]>(`${API}/api/v1/events?status=OPEN`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
+                const res = await apiClient.get<Event[]>("/api/v1/events?status=OPEN");
                 setEvents(res.data);
             } catch (e: any) {
                 setMsg(e.response?.data?.error || 'server');

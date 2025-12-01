@@ -1,32 +1,34 @@
 'use client';
-import  { useCallback, useEffect, useMemo, useState } from 'react'
 
-import axios from 'axios';
-
-
-
-
+import { useCallback, useEffect, useState } from 'react'
+import apiClient from '../lib/api-client';
+import { useAuthStore } from '../store/useAuthStore';
+import { useShallow } from 'zustand/react/shallow'
 
 
 const useBalance = () => {
     const [balance, setBalance] = useState<number | null>(null);
-    const [token, setToken] = useState<string | null>(null);
-
-    const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-    const headers = useMemo(() => ({ headers: { Authorization: `Bearer ${token}` } }), [token]);
+    const { isAuthenticated, initialized } = useAuthStore(useShallow((state) => ({
+        isAuthenticated: state.isAuthenticated,
+        initialized: state.initialized,
+    })))
 
     const fetchBalance = useCallback(async () => {
-        if (!token) return;
+        if (!isAuthenticated) {
+            setBalance(null)
+            return
+        }
         try {
-            const bal = await axios.get<{ balance: number; balancePaise: string; decimal: number }>(`${API}/api/v1/me/balance`, headers)
+            const bal = await apiClient.get<{ balance: number; balancePaise: string; decimal: number }>("/api/v1/me/balance")
             setBalance(bal.data.balance);
         } catch (error) {
             console.log(error);
         }
-    }, [API, headers, token]);
+    }, [isAuthenticated]);
 
-    useEffect(() => { setToken(localStorage.getItem('oddsCraftToken')); }, []);
-    useEffect(() => { if (token) fetchBalance(); }, [token, fetchBalance]);
+    useEffect(() => {
+        if (initialized) fetchBalance();
+    }, [initialized, fetchBalance]);
 
     return {
         balance,

@@ -4,7 +4,9 @@ import { z } from 'zod';
 import { Card, CardHeader, CardTitle, CardContent } from '@repo/ui/components/card';
 import { Button } from '@repo/ui/components/button';
 import { Input } from '@repo/ui/components/input';
-import axios from 'axios';
+import apiClient from '../../lib/api-client';
+import { useAuthStore } from '../../store/useAuthStore';
+import { withProtectedRoute } from '../../context/withProtectedRoute';
 
 type Event = { id: string; title: string; endsAt: string; status: 'OPEN' | 'CLOSED' | 'SETTLED' };
 
@@ -13,55 +15,52 @@ const formSchema = z.object({
     endsAt: z.string().datetime(),
 });
 
-export default function AdminEvents() {
+function AdminEvents() {
 
     const [events, setEvents] = useState<Event[]>([]);
     const [form, setForm] = useState({ title: '', endsAt: '' });
     const [msg, setMsg] = useState('');
-    const [token,setToken]=useState<string|null>(null);
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+    const { user, isAuthenticated, initialize } = useAuthStore((state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+        initialize: state.initialize,
+    }))
 
     useEffect(() => {
-        const storedToken = localStorage.getItem('oddsCraftToken');
-        setToken(storedToken);
-        if (!storedToken) {
+        initialize()
+    }, [initialize])
+
+    useEffect(() => {
+        if (!isAuthenticated) {
             setMsg('sign in to manage events');
+            return;
+        }
+        if (user?.role !== 'ADMIN') {
+            setMsg('admin access required');
             return;
         }
         const fetchData = async () => {
             try {
-                const { data } = await axios.get(`${API_BASE}/api/v1/admin/event`, {
-                    headers: {
-                        Authorization: `Bearer ${storedToken}`
-                    }
-                });
+                const { data } = await apiClient.get(`/api/v1/admin/event`);
                 setEvents(data);
             } catch {
                 setMsg('could not load events');
             }
         };
         fetchData();
-    }, []);
+    }, [isAuthenticated, user]);
 
     async function create() {
-        // const ok = formSchema.safeParse(form);
-        // if (!ok.success) { setMsg('fill both fields'); return; }
-        if (!token) { setMsg('sign in to create events'); return; }
-        const { data } = await axios.post(`${ API_BASE }/api/v1/admin/event`, { ...form, endsAt: new Date(form.endsAt) }, {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        });
+        const ok = formSchema.safeParse(form);
+        if (!ok.success) { setMsg('fill both fields'); return; }
+        if (!isAuthenticated || user?.role !== 'ADMIN') { setMsg('admin access required'); return; }
+        const { data } = await apiClient.post(`/api/v1/admin/event`, { ...form, endsAt: new Date(form.endsAt) });
         setEvents(e => [data, ...e]); setForm({ title: '', endsAt: '' });
     }
 
     async function close(id: string) {
-        if (!token) { setMsg('sign in to update events'); return; }
-        await axios.post(`${ API_BASE }/api/v1/admin/event/${id}`, { status: 'CLOSED' }, {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        });
+        if (!isAuthenticated || user?.role !== 'ADMIN') { setMsg('sign in to update events'); return; }
+        await apiClient.post(`/api/v1/admin/event/${id}`, { status: 'CLOSED' });
         setEvents(e => e.map(ev => ev.id === id ? { ...ev, status: 'CLOSED' } : ev));
     }
 
@@ -107,3 +106,5 @@ export default function AdminEvents() {
         </div>
     );
 }
+
+export default withProtectedRoute(AdminEvents)
