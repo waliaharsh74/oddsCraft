@@ -59,8 +59,8 @@ function UserWalletCard() {
         }
         try {
             const [ ord, trd] = await Promise.all([
-                apiClient.get<OrderInMem[]>(`/api/v1/me/orders?status=OPEN`),
-                apiClient.get<TradeMsg[]>(`/api/v1/me/trades`),
+                apiClient.get<OrderInMem[]>(`/me/orders?status=OPEN`),
+                apiClient.get<TradeMsg[]>(`/me/trades`),
             ]);
             setOrders(ord.data);
             setTrades(trd.data.slice(0, 20));
@@ -81,7 +81,7 @@ function UserWalletCard() {
         if (!isAuthenticated) { setMsg('please sign in again'); return; }
         setMsg('processing...');
         try {
-            await apiClient.post(`/api/v1/wallet/topup`,{
+            await apiClient.post(`/wallet/topup`,{
                 amt:amount
             })
       

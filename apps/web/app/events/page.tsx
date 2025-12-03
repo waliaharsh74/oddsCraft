@@ -29,7 +29,7 @@ type Event = {
     useEffect(() => {
         const fetchEvents = async () => {
             try {
-                const res = await apiClient.get<Event[]>("/api/v1/events?status=OPEN");
+                const res = await apiClient.get<Event[]>("/events?status=OPEN");
                 setEvents(res.data);
             } catch (e: any) {
                 setMsg(e.response?.data?.error || 'server');

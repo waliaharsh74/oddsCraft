@@ -60,6 +60,8 @@ export const useAuthStore = create<AuthState>()(
                 set({ isLoading: true, error: null })
                 try {
                     const { data } = await apiClient.post("/auth/signin", { email, password })
+                    console.log('data :',data);
+                    
                     set({ user: data.user, isAuthenticated: true, initialized: true })
                 } catch (err) {
                     set({ error: getErrorMessage(err), isAuthenticated: false })

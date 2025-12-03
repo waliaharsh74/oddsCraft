@@ -19,7 +19,7 @@ const useBalance = () => {
             return
         }
         try {
-            const bal = await apiClient.get<{ balance: number; balancePaise: string; decimal: number }>("/api/v1/me/balance")
+            const bal = await apiClient.get<{ balance: number; balancePaise: string; decimal: number }>("/me/balance")
             setBalance(bal.data.balance);
         } catch (error) {
             console.log(error);

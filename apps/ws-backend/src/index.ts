@@ -2,10 +2,10 @@ import { WebSocketServer } from 'ws';
 import Redis from 'ioredis';
 import jwt from 'jsonwebtoken';
 import 'dotenv/config';
-
+import cookie from "cookie"
 const PORT = Number(process.env.PORT || 4000);
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
-const JWT_SECRET = process.env.JWT_SECRET || '';     
+const JWT_SECRET = process.env.ACCESS_JWT_SECRET || '';     
 
 const sub = new Redis(REDIS_URL, {
     retryStrategy: a => Math.min(a * 200, 2_000),
@@ -35,7 +35,8 @@ sub.on('message', (_, raw) => {
 wss.on('connection', (ws: any, req) => {
     const url = new URL(req.url || '/', `ws://${req.headers.host}`);
     const eventId = url.searchParams.get('eventId');
-    const token = url.searchParams.get('token');
+       const cookies = cookie.parse(req.headers.cookie || '');
+    const token = cookies['access_token'];
 
     if (JWT_SECRET) {
         try { jwt.verify(token || '', JWT_SECRET); }

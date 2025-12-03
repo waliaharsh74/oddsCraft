@@ -41,7 +41,7 @@ function AdminEvents() {
         }
         const fetchData = async () => {
             try {
-                const { data } = await apiClient.get(`/api/v1/admin/event`);
+                const { data } = await apiClient.get(`/admin/event`);
                 setEvents(data);
             } catch {
                 setMsg('could not load events');
@@ -54,13 +54,13 @@ function AdminEvents() {
         const ok = formSchema.safeParse(form);
         if (!ok.success) { setMsg('fill both fields'); return; }
         if (!isAuthenticated || user?.role !== 'ADMIN') { setMsg('admin access required'); return; }
-        const { data } = await apiClient.post(`/api/v1/admin/event`, { ...form, endsAt: new Date(form.endsAt) });
+        const { data } = await apiClient.post(`/admin/event`, { ...form, endsAt: new Date(form.endsAt) });
         setEvents(e => [data, ...e]); setForm({ title: '', endsAt: '' });
     }
 
     async function close(id: string) {
         if (!isAuthenticated || user?.role !== 'ADMIN') { setMsg('sign in to update events'); return; }
-        await apiClient.post(`/api/v1/admin/event/${id}`, { status: 'CLOSED' });
+        await apiClient.post(`/admin/event/${id}`, { status: 'CLOSED' });
         setEvents(e => e.map(ev => ev.id === id ? { ...ev, status: 'CLOSED' } : ev));
     }
 

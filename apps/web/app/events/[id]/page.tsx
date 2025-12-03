@@ -54,8 +54,8 @@ function TradeDashboard() {
         async function fetchInitial() {
             try {
                 const [meta, book] = await Promise.all([
-                    apiClient.get<EventMeta[]>(`/api/v1/events?id=${eventId}`),
-                    apiClient.get<Depth>(`/api/v1/depth?eventId=${eventId}`),
+                    apiClient.get<EventMeta[]>(`/events?id=${eventId}`),
+                    apiClient.get<Depth>(`1/depth?eventId=${eventId}`),
                 ]);
                 if (meta.data.length > 0) {
                     setEvent(meta.data[0]);
@@ -107,7 +107,7 @@ function TradeDashboard() {
         if (!eventId) return;
         setMsg('posting...');
         try {
-            await apiClient.post("/api/v1/orders",
+            await apiClient.post("/orders",
                 { eventId, side, price: +price, qty: +qty },
             );
             setMsg('Order placed');

@@ -15,7 +15,7 @@ type PendingRequest = {
 const API_BASE = HTTP_BACKEND_URL || "http://localhost:3001"
 
 const apiClient = axios.create({
-    baseURL: API_BASE,
+    baseURL: `${API_BASE}/api/v1`,
     withCredentials: true,
 })
 
