@@ -1,8 +1,8 @@
 'use client'
 
-import { AUTH_TOKEN, REFRESH_TOKEN, USER_ID } from "@repo/common"
+import { ACCESS_TOKEN, REFRESH_TOKEN, USER_ID } from "@repo/common"
 
-export const CLIENT_AUTH_COOKIE = AUTH_TOKEN
+export const CLIENT_AUTH_COOKIE = ACCESS_TOKEN
 export const CLIENT_REFRESH_COOKIE = REFRESH_TOKEN
 export const CLIENT_USER_ID_COOKIE = USER_ID
 

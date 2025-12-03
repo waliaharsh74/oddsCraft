@@ -1,7 +1,7 @@
 import express, { Router } from "express"
 import bcrypt from "bcryptjs"
 import { prisma } from "@repo/db"
-import { AUTH_TOKEN, REFRESH_TOKEN, signinSchema, signupSchema } from "@repo/common"
+import { ACCESS_TOKEN, REFRESH_TOKEN, signinSchema, signupSchema } from "@repo/common"
 import { getAuthToken } from "../middlewares"
 import { clearAuthCookies, setAuthCookies, verifyToken } from "../helper"
 import { logger } from "../lib/logger"
@@ -48,15 +48,14 @@ authRouter.post("/signin", async (req, res) => {
         
         const user = await prisma.user.findUnique({ where: { email } })
         if (!user || !(await bcrypt.compare(password, user.passwordHash))) { res.status(401).json({ error: "Invalid Credentials" }); return }
-         logger.info({ user }, "before")
         const tokens = setAuthCookies(res, { id: user.id, role: user.role })
-        logger.info({ user }, "after")
         res.status(200).json({
             msg: "Welcome Back!",
             user: { id: user.id, email: user.email, role: user.role },
             token: tokens.accessToken,
             refreshToken: tokens.refreshToken
         })
+        return
     } catch (error) {
         logger.error({ err: error }, "Signin failed")
         res.status(500).json({ error: "Internal Server Error" })
@@ -100,7 +99,7 @@ authRouter.get("/me", async (req: AuthRequest, res) => {
 
         if (accessToken) {
             try {
-                const payload = verifyToken(AUTH_TOKEN, accessToken)
+                const payload = verifyToken(ACCESS_TOKEN, accessToken)
                 userId = payload.id
             } catch (error) {
                 logger.info({ err: error }, "Access token invalid, trying refresh")

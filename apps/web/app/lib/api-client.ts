@@ -1,7 +1,7 @@
 'use client'
 
 import axios, { type AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from "axios"
-import { AUTH_TOKEN, USER_ID } from "@repo/common"
+import { ACCESS_TOKEN, USER_ID } from "@repo/common"
 import { HTTP_BACKEND_URL } from "../config"
 import { getCookie } from "./cookies"
 
@@ -39,7 +39,7 @@ export const setUnauthorizedHandler = (handler: () => void) => {
 }
 
 apiClient.interceptors.request.use((config) => {
-    const token = getCookie(AUTH_TOKEN)
+    const token = getCookie(ACCESS_TOKEN)
     const userId = getCookie(USER_ID)
 
     if (token) {

@@ -14,6 +14,7 @@ import { BadgeCheckIcon } from 'lucide-react';
 import useBalance from '../hooks/useBalance';
 import apiClient from '../lib/api-client';
 import { useAuthStore } from '../store/useAuthStore';
+import { useShallow } from 'zustand/react/shallow';
 interface TradeMsg {
     id: string;
     side: OrderSide;
@@ -48,9 +49,9 @@ function UserWalletCard() {
     const [orders, setOrders] = useState<OrderInMem[]>([]);
     const [trades, setTrades] = useState<TradeMsg[]>([]);
     const[loading,setLoading]=useState<boolean>(true)
-    const { isAuthenticated } = useAuthStore((state) => ({
+    const { isAuthenticated } = useAuthStore(useShallow((state) => ({
         isAuthenticated: state.isAuthenticated,
-    }))
+    })))
 
     const refreshAll = useCallback(async () => {
         if (!isAuthenticated) {

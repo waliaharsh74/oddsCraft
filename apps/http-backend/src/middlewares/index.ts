@@ -1,4 +1,4 @@
-import { AUTH_TOKEN } from "@repo/common"
+import { ACCESS_TOKEN } from "@repo/common"
 import { NextFunction, Response } from "express"
 import { AuthRequest } from "../interfaces"
 import { verifyToken } from "../helper"
@@ -9,7 +9,7 @@ export const getAuthToken = (req: AuthRequest) => {
     if (header?.toLowerCase().startsWith("bearer ")) {
         return header.slice("bearer ".length).trim()
     }
-    return req.cookies?.[AUTH_TOKEN]
+    return req.cookies?.[ACCESS_TOKEN]
 }
 
 export const auth = (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -20,7 +20,7 @@ export const auth = (req: AuthRequest, res: Response, next: NextFunction) => {
         return
     }
     try {
-        const payload = verifyToken(AUTH_TOKEN, token)
+        const payload = verifyToken(ACCESS_TOKEN, token)
         
         req.userId = payload.id
         req.role = payload.role

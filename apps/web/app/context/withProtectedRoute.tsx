@@ -4,14 +4,15 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { SkeletonLoader } from "../components/Skeleton";
 import { useAuthStore } from "../store/useAuthStore";
+import { useShallow } from "zustand/react/shallow";
 
 export const withProtectedRoute = (WrappedComponent: any) => {
     return (props: any) => {
-        const { isAuthenticated, isLoading, initialized } = useAuthStore((state) => ({
+        const { isAuthenticated, isLoading, initialized } = useAuthStore(useShallow((state) => ({
             isAuthenticated: state.isAuthenticated,
             isLoading: state.isLoading,
             initialized: state.initialized,
-        }))
+        })))
         const initialize = useAuthStore((state) => state.initialize)
         const router = useRouter();
 

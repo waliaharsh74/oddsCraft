@@ -4,20 +4,17 @@ const ACCESS_JWT_SECRET = process.env.ACCESS_JWT_SECRET || process.env.ACCES_JWT
 const REFRESH_JWT_SECRET = process.env.REFRESH_JWT_SECRET || ACCESS_JWT_SECRET
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000"
-const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN
 const isProd = process.env.NODE_ENV === "production"
 
 const baseCookieOptions = {
     httpOnly: true,
     secure: isProd,
     sameSite: isProd ? "none" as const : "lax" as const,
-    domain: COOKIE_DOMAIN || undefined,
     path: "/"
 }
 
 export const accessTokenCookieOptions = {
     ...baseCookieOptions,
-    httpOnly: false,
     maxAge: 15 * 60 * 1000, 
 }
 
@@ -35,8 +32,8 @@ export const userIdCookieOptions = {
 export const corsOptions: CorsOptions = {
     origin: FRONTEND_URL,
     credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    // methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    // allowedHeaders: ["Content-Type", "Authorization"],
 }
 
 export {

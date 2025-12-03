@@ -7,6 +7,7 @@ import { Input } from '@repo/ui/components/input';
 import apiClient from '../../lib/api-client';
 import { useAuthStore } from '../../store/useAuthStore';
 import { withProtectedRoute } from '../../context/withProtectedRoute';
+import { useShallow } from 'zustand/react/shallow';
 
 type Event = { id: string; title: string; endsAt: string; status: 'OPEN' | 'CLOSED' | 'SETTLED' };
 
@@ -20,11 +21,11 @@ function AdminEvents() {
     const [events, setEvents] = useState<Event[]>([]);
     const [form, setForm] = useState({ title: '', endsAt: '' });
     const [msg, setMsg] = useState('');
-    const { user, isAuthenticated, initialize } = useAuthStore((state) => ({
+    const { user, isAuthenticated, initialize } = useAuthStore(useShallow((state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
         initialize: state.initialize,
-    }))
+    })))
 
     useEffect(() => {
         initialize()

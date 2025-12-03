@@ -36,7 +36,7 @@ wss.on('connection', (ws: any, req) => {
     const url = new URL(req.url || '/', `ws://${req.headers.host}`);
     const eventId = url.searchParams.get('eventId');
        const cookies = cookie.parse(req.headers.cookie || '');
-    const token = cookies['access_token'];
+    const token = cookies['ACCESS_TOKEN'];
 
     if (JWT_SECRET) {
         try { jwt.verify(token || '', JWT_SECRET); }
