@@ -1,11 +1,13 @@
 import { WebSocketServer } from 'ws';
 import Redis from 'ioredis';
 import jwt from 'jsonwebtoken';
-import 'dotenv/config';
-import cookie from "cookie"
+import dotenv from "dotenv";
+import * as cookie from "cookie"
+dotenv.config()
+
 const PORT = Number(process.env.PORT || 4000);
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
-const JWT_SECRET = process.env.ACCESS_JWT_SECRET || '';     
+const JWT_SECRET = process.env.ACCESS_JWT_SECRET || '';
 
 const sub = new Redis(REDIS_URL, {
     retryStrategy: a => Math.min(a * 200, 2_000),
@@ -32,14 +34,26 @@ sub.on('message', (_, raw) => {
     });
 });
 
+
 wss.on('connection', (ws: any, req) => {
-    const url = new URL(req.url || '/', `ws://${req.headers.host}`);
-    const eventId = url.searchParams.get('eventId');
-       const cookies = cookie.parse(req.headers.cookie || '');
-    const token = cookies['ACCESS_TOKEN'];
+
+    try {
+        
+    
+        const url = new URL(req.url || '/', `ws://${req.headers.host}`);
+        const eventId = url.searchParams.get('eventId');
+
+
+        const cookies = cookie?.parse(req?.headers?.cookie || '');
+
+        const token = cookies['ACCESS_TOKEN']!;
+      
+    
+
 
     if (JWT_SECRET) {
-        try { jwt.verify(token || '', JWT_SECRET); }
+        try { 
+            jwt.verify(token,JWT_SECRET)}
         catch { ws.close(4001, 'unauthorized'); return; }
     }
 
@@ -50,7 +64,17 @@ wss.on('connection', (ws: any, req) => {
     }
 
     ws.isAlive = true;
+    ws.on("message", () => {
+        ws.send(JSON.stringify({ msg: "Hello!" }))
+    })
     ws.on('pong', () => (ws.isAlive = true));
+    ws.on('error', (data:any) => {
+        console.log("error in connecting to websocket server:", data)
+
+    })
+    } catch (error) {
+        console.log('err',error);       
+    }    
 });
 
 setInterval(() => {

@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import {  OrderSide, OrderStatus } from "@repo/db"
+import { OrderSide, OrderStatus } from "@repo/db"
 import { z } from 'zod';
 
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@repo/ui/components/card';
-import { Badge  } from '@repo/ui/components/badge';
+import { Badge } from '@repo/ui/components/badge';
 import { Button } from '@repo/ui/components/button';
 import { Input } from '@repo/ui/components/input';
 import { withProtectedRoute } from '../context/withProtectedRoute';
@@ -36,8 +36,8 @@ interface OrderInMem {
     qty: number;
     openQty: number;
     status: OrderStatus;
-    event: EventLite;  
-  }
+    event: EventLite;
+}
 
 const amountSchema = z.number().int().min(10).max(10_000);
 
@@ -48,7 +48,7 @@ function UserWalletCard() {
     const [msg, setMsg] = useState('');
     const [orders, setOrders] = useState<OrderInMem[]>([]);
     const [trades, setTrades] = useState<TradeMsg[]>([]);
-    const[loading,setLoading]=useState<boolean>(true)
+    const [loading, setLoading] = useState<boolean>(true)
     const { isAuthenticated } = useAuthStore(useShallow((state) => ({
         isAuthenticated: state.isAuthenticated,
     })))
@@ -59,7 +59,7 @@ function UserWalletCard() {
             return
         }
         try {
-            const [ ord, trd] = await Promise.all([
+            const [ord, trd] = await Promise.all([
                 apiClient.get<OrderInMem[]>(`/me/orders?status=OPEN`),
                 apiClient.get<TradeMsg[]>(`/me/trades`),
             ]);
@@ -67,8 +67,8 @@ function UserWalletCard() {
             setTrades(trd.data.slice(0, 20));
             setLoading(false)
         } catch {
-            
-            setMsg('could not fetch data'); 
+
+            setMsg('could not fetch data');
             setLoading(false)
         }
     }, [isAuthenticated])
@@ -76,16 +76,16 @@ function UserWalletCard() {
 
     useEffect(() => { if (isAuthenticated) { refreshAll(); } }, [isAuthenticated, refreshAll]);
 
-  
-  
+
+
     async function topUp(amount: number) {
         if (!isAuthenticated) { setMsg('please sign in again'); return; }
         setMsg('processing...');
         try {
-            await apiClient.post(`/wallet/topup`,{
-                amt:amount
+            await apiClient.post(`/wallet/topup`, {
+                amt: amount
             })
-      
+
             setMsg('Balance updated');
             setCustom('');
             refreshBalance();
@@ -123,7 +123,7 @@ function UserWalletCard() {
                 {/* <div className='col-span-2 flex flex-col'>
 
                 </div> */}
-                <Skeleton className="bg-zinc-500 lg:col-span-1 col-span-3 mb-2 rounded-xl"  />
+                <Skeleton className="bg-zinc-500 lg:col-span-1 col-span-3 mb-2 rounded-xl" />
                 <Skeleton className="lg:col-span-2 rounded-xl col-span-3 bg-zinc-500 mb-2 " />
                 <Skeleton className="lg:col-span-3 rounded-xl col-span-3 bg-zinc-500  " />
 
@@ -133,7 +133,7 @@ function UserWalletCard() {
 
     return (
         <div className="px-6 py-24 lg:grid lg:grid-cols-3 gap-4  space-y-6 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-800 min-h-screen w-full text-white">
-            
+
             <div className="absolute -top-40 -left-40 w-80 h-80 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse" />
             <div className="absolute lg:-bottom-6 lg:-right-32 -bottom-40 -right-0 w-[12rem] h-[12rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse" />
 
@@ -141,21 +141,21 @@ function UserWalletCard() {
                 <CardHeader><CardTitle className="text-xl">Wallet</CardTitle></CardHeader>
 
                 <CardContent className="space-y-6">
-                    
+
                     <div className="text-4xl font-extrabold text-emerald-400">
                         {balance === null ? '₹ --' : `₹${balance.toFixed(2)}`}
                     </div>
 
-                
+
                     <div className="flex gap-3">
-                        {QUICK.map((v,i) => (
+                        {QUICK.map((v, i) => (
                             <Button key={i} variant="outline" className="flex-1 text-black" onClick={() => topUp(v)}>
                                 +₹{v}
                             </Button>
                         ))}
                     </div>
 
-                
+
                     <div className="flex gap-2">
                         <Input placeholder="custom" type="number" value={custom}
                             onChange={e => setCustom(e.target.value)} className="flex-1 text-black" />
@@ -188,7 +188,7 @@ function UserWalletCard() {
                             <tbody className="divide-y divide-zinc-800 ">
                                 {orders.length === 0 ? (
                                     <tr className="border-t border-zinc-700">
-                                        <td  className="text-center text-zinc-500 p-4">
+                                        <td className="text-center text-zinc-500 p-4">
                                             no open orders
                                         </td>
                                     </tr>
@@ -244,18 +244,18 @@ function UserWalletCard() {
                                     trades.map(t => (
                                         <tr key={t.id} className="border-t border-zinc-700">
                                             <td className="p-2 min-w-[200px]">{t.event.title}</td>
-                                            
-                                                <td >
-                                                    
-                                                    <Badge
-                                                        variant="destructive"
-                                                        className={` ${t.side === 'YES' ? 'bg-green-600' : 'bg-red-600'}`}
-                                                    >
-                                                    <BadgeCheckIcon size={18} />    
-                                                        {t.side}
-                                                    </Badge>
-                                                </td>
-                                            
+
+                                            <td >
+
+                                                <Badge
+                                                    variant="destructive"
+                                                    className={` ${t.side === 'YES' ? 'bg-green-600' : 'bg-red-600'}`}
+                                                >
+                                                    <BadgeCheckIcon size={18} />
+                                                    {t.side}
+                                                </Badge>
+                                            </td>
+
                                             <td className="p-2">₹{rup(t.price, t.decimal)}</td>
                                             <td className="p-2">{t.qty}</td>
                                             <td className="p-2 text-xs text-zinc-400">{new Date(t.createdAt).toLocaleDateString()}</td>

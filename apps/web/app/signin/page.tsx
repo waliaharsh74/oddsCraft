@@ -1,12 +1,12 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import {  toast, ToastContainer } from 'react-toastify';
-import {  signinSchema } from "@repo/common";
+import { toast, ToastContainer } from 'react-toastify';
+import { signinSchema } from "@repo/common";
 import Link from 'next/link';
-import {  Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { Button } from "@repo/ui/components/button";
 import { Input } from "@repo/ui/components/input";
 import { Label } from "@repo/ui/components/label";
@@ -15,8 +15,9 @@ import { Label } from "@repo/ui/components/label";
 import axios from "axios"
 import { useAuthStore } from "../store/useAuthStore";
 import { useShallow } from "zustand/react/shallow";
+import { SkeletonLoader } from "../components/Skeleton";
 
-interface signInError{
+interface signInError {
     email?: string[] | undefined;
     password?: string[] | undefined
 }
@@ -27,12 +28,26 @@ export default function SignIn() {
 
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-    const { login } = useAuthStore(useShallow((state) => ({
+    const { login, initialize, initialized, isAuthenticated } = useAuthStore(useShallow((state) => ({
         login: state.login,
+        initialize: state.initialize,
+        initialized: state.initialized,
+        isAuthenticated: state.isAuthenticated,
     })))
-   
+
+
     const [err, setErr] = useState<signInError>({})
     const router = useRouter()
+
+    useEffect(() => {
+        void initialize()
+    }, [initialize])
+
+    useEffect(() => {
+        if (initialized && isAuthenticated) {
+            router.replace("/events")
+        }
+    }, [initialized, isAuthenticated, router])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -50,7 +65,7 @@ export default function SignIn() {
             await login(email, password)
             toast.success("Welcome back!");
             setTimeout(() => router.push('/events'), 800);
-            
+
         } catch (error) {
             console.log(error);
             if (axios.isAxiosError(error)) {
@@ -62,18 +77,26 @@ export default function SignIn() {
                 setLoading(false)
             }
         }
-        
-        
+
+
+    }
+
+    if (!initialized) {
+        return <SkeletonLoader />
+    }
+
+    if (isAuthenticated) {
+        return <SkeletonLoader />
     }
 
     return (
         <div className="flex min-h-screen bg-gray-50">
             <div className="w-full lg:w-1/2 flex flex-col p-6 md:p-12 justify-center animate-fade-in">
                 <div className="max-w-md w-full mx-auto">
-               
+
 
                     <div className="space-y-2 mb-8">
-                    
+
                         <h1 className="text-2xl font-bold">Welcome back</h1>
                         <p className="text-gray-500">Sign in to your account to continue.</p>
                     </div>
@@ -98,7 +121,7 @@ export default function SignIn() {
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
                                     <Label htmlFor="password">Password</Label>
-                                    
+
                                 </div>
                                 <div className="relative">
                                     <Input
@@ -131,10 +154,10 @@ export default function SignIn() {
                             <Button type="submit" className="w-full" disabled={loading}>
                                 {loading ? "Signing in..." : "Sign in"}
                             </Button>
-                            </div>
+                        </div>
                     </form>
 
-                
+
 
                     <div className="mt-8 text-center text-sm">
                         Don't have an account?{' '}
@@ -184,8 +207,7 @@ export default function SignIn() {
                     </div>
                 </div>
             </div>
-            <ToastContainer/>
+            <ToastContainer />
         </div>
     )
 }
-

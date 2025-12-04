@@ -1,6 +1,8 @@
 import jwt from "jsonwebtoken"
 import dotenv from "dotenv"
 import type { Response } from "express"
+import { logger } from "../lib/logger"
+
 import { ACCESS_TOKEN, REFRESH_TOKEN, USER_ID } from "@repo/common"
 import { accessTokenCookieOptions, refreshTokenCookieOptions, ACCESS_JWT_SECRET, REFRESH_JWT_SECRET, userIdCookieOptions } from "../config/env"
 
@@ -18,6 +20,7 @@ const tokenConfig = {
 
 export const createToken = (tokenType: typeof ACCESS_TOKEN | typeof REFRESH_TOKEN, payload: TokenPayload) => {
     const { secret, expiresIn } = tokenConfig[tokenType]!
+    
     return jwt.sign(payload, secret, { expiresIn })
 }
 
@@ -34,7 +37,7 @@ export const setAuthCookies = (res: Response, payload: TokenPayload) => {
     res.cookie(REFRESH_TOKEN, refreshToken, refreshTokenCookieOptions)
     res.cookie(USER_ID, payload.id, userIdCookieOptions)
 
-    return { accessToken, refreshToken }
+    return { accessToken, refreshToken,ACCESS_JWT_SECRET }
 }
 
 export const clearAuthCookies = (res: Response) => {

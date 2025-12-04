@@ -53,7 +53,8 @@ authRouter.post("/signin", async (req, res) => {
             msg: "Welcome Back!",
             user: { id: user.id, email: user.email, role: user.role },
             token: tokens.accessToken,
-            refreshToken: tokens.refreshToken
+            refreshToken: tokens.refreshToken,
+     
         })
         return
     } catch (error) {

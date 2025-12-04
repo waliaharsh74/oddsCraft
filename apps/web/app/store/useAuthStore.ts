@@ -15,6 +15,7 @@ export type AuthState = {
     user: AuthUser | null
     isAuthenticated: boolean
     isLoading: boolean
+    
     initialized: boolean
     error: string | null
     initialize: () => Promise<void>

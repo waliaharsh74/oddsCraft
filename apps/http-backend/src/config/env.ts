@@ -1,7 +1,7 @@
 import type { CorsOptions } from "cors"
 
-const ACCESS_JWT_SECRET = process.env.ACCESS_JWT_SECRET || process.env.ACCES_JWT_SECRET || "changeme"
-const REFRESH_JWT_SECRET = process.env.REFRESH_JWT_SECRET || ACCESS_JWT_SECRET
+const ACCESS_JWT_SECRET = process.env.ACCESS_JWT_SECRET !
+const REFRESH_JWT_SECRET = process.env.REFRESH_JWT_SECRET !|| ACCESS_JWT_SECRET!
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000"
 const isProd = process.env.NODE_ENV === "production"

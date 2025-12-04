@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast, ToastContainer } from "react-toastify"
 import { signupSchema } from "@repo/common"
@@ -15,6 +15,7 @@ import { Label } from "@repo/ui/components/label";
 import axios from "axios"
 import { useAuthStore } from "../store/useAuthStore"
 import { useShallow } from "zustand/react/shallow"
+import { SkeletonLoader } from "../components/Skeleton"
 
 interface signUpError {
     
@@ -30,11 +31,24 @@ export default function SignUp() {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    const { signup } = useAuthStore(useShallow((state) => ({
+    const { signup, initialize, initialized, isAuthenticated } = useAuthStore(useShallow((state) => ({
         signup: state.signup,
+        initialize: state.initialize,
+        initialized: state.initialized,
+        isAuthenticated: state.isAuthenticated,
     })))
 
     const router = useRouter()
+
+    useEffect(() => {
+        void initialize()
+    }, [initialize])
+
+    useEffect(() => {
+        if (initialized && isAuthenticated) {
+            router.replace("/events")
+        }
+    }, [initialized, isAuthenticated, router])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -69,6 +83,14 @@ export default function SignUp() {
 
 
 
+    }
+
+    if (!initialized) {
+        return <SkeletonLoader />
+    }
+
+    if (isAuthenticated) {
+        return <SkeletonLoader />
     }
 
     return (

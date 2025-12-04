@@ -41,12 +41,13 @@ function TradeDashboard() {
     const [qty, setQty] = useState(100);
     const [msg, setMsg] = useState('');
 
-    useEffect(() => {
-        const syncToken = () => setAccessToken(getCookie(CLIENT_AUTH_COOKIE));
-        syncToken();
-        window.addEventListener("focus", syncToken);
-        return () => window.removeEventListener("focus", syncToken);
-    }, []);
+    // useEffect(() => {
+    //     console.log("cookies",getCookie(CLIENT_AUTH_COOKIE))
+    //     const syncToken = () => setAccessToken(getCookie(CLIENT_AUTH_COOKIE));
+    //     syncToken();
+    //     window.addEventListener("focus", syncToken);
+    //     return () => window.removeEventListener("focus", syncToken);
+    // }, []);
 
     useEffect(() => {
         if (!eventId) return;
@@ -55,7 +56,7 @@ function TradeDashboard() {
             try {
                 const [meta, book] = await Promise.all([
                     apiClient.get<EventMeta[]>(`/events?id=${eventId}`),
-                    apiClient.get<Depth>(`1/depth?eventId=${eventId}`),
+                    apiClient.get<Depth>(`/depth?eventId=${eventId}`),
                 ]);
                 if (meta.data.length > 0) {
                     setEvent(meta.data[0]);
@@ -72,9 +73,15 @@ function TradeDashboard() {
     }, [eventId]);
 
     useEffect(() => {
-        if (!accessToken || !eventId) return;
+        if ( !eventId) return;
 
-        const ws = new WebSocket(`${WSS}?token=${accessToken}&eventId=${eventId}`);
+        const ws = new WebSocket(`${WSS}?eventId=${eventId}`);
+       
+        ws.onopen=()=>{
+
+            ws.send(JSON.stringify({msg:"Hi!"}))
+        }
+        
 
         ws.onmessage = (e) => {
             const m = JSON.parse(e.data);

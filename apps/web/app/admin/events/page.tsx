@@ -8,12 +8,13 @@ import apiClient from '../../lib/api-client';
 import { useAuthStore } from '../../store/useAuthStore';
 import { withProtectedRoute } from '../../context/withProtectedRoute';
 import { useShallow } from 'zustand/react/shallow';
+import { adminProtectedRoute } from '@/app/context/adminProtectedRoute';
 
 type Event = { id: string; title: string; endsAt: string; status: 'OPEN' | 'CLOSED' | 'SETTLED' };
 
 const formSchema = z.object({
     title: z.string().min(5),
-    endsAt: z.string().datetime(),
+    endsAt: z.coerce.date(),
 });
 
 function AdminEvents() {
@@ -53,6 +54,7 @@ function AdminEvents() {
 
     async function create() {
         const ok = formSchema.safeParse(form);
+        console.log(ok)
         if (!ok.success) { setMsg('fill both fields'); return; }
         if (!isAuthenticated || user?.role !== 'ADMIN') { setMsg('admin access required'); return; }
         const { data } = await apiClient.post(`/admin/event`, { ...form, endsAt: new Date(form.endsAt) });
@@ -66,10 +68,10 @@ function AdminEvents() {
     }
 
     return (
-        <div className="px-6 text-white py-32 space-y-6 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-800">
-            <div className="absolute -top-40 -left-40 w-80 h-80 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse"></div>
-            <div className="absolute -bottom-32 -right-32 w-[12rem] h-[12rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse"></div>
-            <Card className="max-w-xl p-4">
+        <div className="px-6 py-24  space-y-6 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-800 min-h-screen w-full text-white">
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse" />
+            <div className="absolute lg:-bottom-6 lg:-right-32 -bottom-40 -right-0 w-[12rem] h-[12rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse" />
+  <Card className="max-w-xl p-4">
                 <CardHeader><CardTitle>Create Event</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                     <Input className='text-black' placeholder="Title" value={form.title}
@@ -108,4 +110,4 @@ function AdminEvents() {
     );
 }
 
-export default withProtectedRoute(AdminEvents)
+export default withProtectedRoute(adminProtectedRoute(AdminEvents))
