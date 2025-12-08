@@ -9,6 +9,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { withProtectedRoute } from '../../context/withProtectedRoute';
 import { useShallow } from 'zustand/react/shallow';
 import { adminProtectedRoute } from '@/app/context/adminProtectedRoute';
+import Link from 'next/link';
 
 type Event = { id: string; title: string; endsAt: string; status: 'OPEN' | 'CLOSED' | 'SETTLED' };
 
@@ -89,7 +90,7 @@ function AdminEvents() {
                     <table className="w-full text-sm">
                         <thead><tr className="text-zinc-400">
                             <th className="text-left p-2">Title</th>
-                            <th className="p-2">Ends</th><th className="p-2">Status</th><th></th></tr></thead>
+                            <th className="p-2">Ends</th><th className="p-2">Status</th><th className="p-2">Details</th><th></th></tr></thead>
                         <tbody>
                             {events.map(ev => (
                                 <tr key={ev.id} className="border-t border-zinc-700">
@@ -97,8 +98,13 @@ function AdminEvents() {
                                     <td className="p-2">{new Date(ev.endsAt).toLocaleString()}</td>
                                     <td className="p-2">{ev.status}</td>
                                     <td className="p-2">
+                                        <Link href={`/admin/events/${ev.id}`}>
+                                            <Button size="sm" variant="glassy">View</Button>
+                                        </Link>
+                                    </td>
+                                    <td className="p-2">
                                         {ev.status === 'OPEN' &&
-                                            <Button size="sm" className='text-black' variant="outline"onClick={() => close(ev.id)}>Close</Button>}
+                                            <Button size="sm" className='text-black' variant="outline" onClick={() => close(ev.id)}>Close</Button>}
                                     </td>
                                 </tr>
                             ))}

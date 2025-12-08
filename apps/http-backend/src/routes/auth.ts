@@ -2,22 +2,17 @@ import express, { Router } from "express"
 import bcrypt from "bcryptjs"
 import { prisma } from "@repo/db"
 import { ACCESS_TOKEN, REFRESH_TOKEN, signinSchema, signupSchema } from "@repo/common"
-import { getAuthToken } from "../middlewares"
+import { z } from "zod"
+import { getAuthToken, zodHandler } from "../middlewares"
 import { clearAuthCookies, setAuthCookies, verifyToken } from "../helper"
 import { logger } from "../lib/logger"
 import { AuthRequest } from "../interfaces"
 
-const authRouter:Router = express.Router()
+const authRouter: Router = express.Router()
 
-authRouter.post("/signup", async (req, res) => {
+authRouter.post("/signup", zodHandler({ body: signupSchema }), async (req: AuthRequest, res) => {
     try {
-        const result = signupSchema.safeParse(req.body)
-        if (!result.success) {
-            res.status(400).json({ error: result.error.flatten() })
-            return
-        }
-
-        const { email, password } = result.data
+        const { email, password } = req.validated?.body as z.infer<typeof signupSchema>
         const exists = await prisma.user.findUnique({ where: { email } })
         if (exists) { res.status(400).json({ error: "email already registered" }); return }
 
@@ -36,14 +31,9 @@ authRouter.post("/signup", async (req, res) => {
     }
 })
 
-authRouter.post("/signin", async (req, res) => {
+authRouter.post("/signin", zodHandler({ body: signinSchema }), async (req: AuthRequest, res) => {
     try {
-        const result = signinSchema.safeParse(req.body)
-        if (!result.success) {
-            res.status(400).json({ error: result.error.flatten() })
-            return
-        }
-        const { email, password } = result.data
+        const { email, password } = req.validated?.body as z.infer<typeof signinSchema>
        
         
         const user = await prisma.user.findUnique({ where: { email } })

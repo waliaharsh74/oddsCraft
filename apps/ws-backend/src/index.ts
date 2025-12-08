@@ -2,27 +2,83 @@ import { WebSocketServer } from 'ws';
 import Redis from 'ioredis';
 import jwt from 'jsonwebtoken';
 import dotenv from "dotenv";
-import * as cookie from "cookie"
+import * as cookie from "cookie";
+import { REDIS_CHANNELS, redisKeys } from '@repo/common';
 dotenv.config()
 
 const PORT = Number(process.env.PORT || 4000);
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 const JWT_SECRET = process.env.ACCESS_JWT_SECRET || '';
 
+const redis = new Redis(REDIS_URL, {
+    retryStrategy: a => Math.min(a * 200, 2_000),
+});
 const sub = new Redis(REDIS_URL, {
     retryStrategy: a => Math.min(a * 200, 2_000),
 });
-sub.subscribe('trade', 'depth', err =>
-    err && console.error('[WS] Redis sub error', err)
-);
+// sub.subscribe(REDIS_CHANNELS.trade, REDIS_CHANNELS.depth, REDIS_CHANNELS.pricing, err =>
+//     err && console.error('[WS] Redis sub error', err)
+// );
 
 const wss = new WebSocketServer({ port: PORT });
 console.log('[WS] gateway on', PORT);
 
 const lastDepth = new Map<string, any>();
+const lastPricing = new Map<string, any>();
+const DEFAULT_DECIMALS = 2;
 
-sub.on('message', (_, raw) => {
-    const { eventId, trades, depth } = JSON.parse(raw);
+const fromMinorUnits = (value: string | number, decimal = DEFAULT_DECIMALS) =>
+    Number(BigInt(String(value))) / Math.pow(10, decimal);
+
+const hydrateEventCache = async (eventId?: string | null) => {
+    if (!eventId) return;
+    try {
+        if (!lastDepth.has(eventId)) {
+            const storedDepth = await redis.get(redisKeys.lastDepth(eventId));
+            if (storedDepth) {
+                const parsedDepth = JSON.parse(storedDepth);
+                const depthPayload = parsedDepth.depth ?? parsedDepth;
+                lastDepth.set(eventId, depthPayload);
+            }
+        }
+
+        if (!lastPricing.has(eventId)) {
+            const storedPricing = await redis.get(redisKeys.lastPricing(eventId));
+            if (storedPricing) {
+                lastPricing.set(eventId, JSON.parse(storedPricing));
+            } else {
+                const mmStateRaw = await redis.get(redisKeys.marketMakerState(eventId));
+                if (mmStateRaw) {
+                    const mmState = JSON.parse(mmStateRaw);
+                    const decimals = mmState.decimals ?? DEFAULT_DECIMALS;
+                    lastPricing.set(eventId, {
+                        eventId,
+                        state: mmState,
+                        priceYes: fromMinorUnits(mmState.priceYesPaise, decimals),
+                        priceNo: fromMinorUnits(mmState.priceNoPaise, decimals),
+                    });
+                }
+            }
+        }
+    } catch (err) {
+        console.error('[WS] Failed to hydrate event cache from Redis', err);
+    }
+};
+
+sub.on('message', (channel, raw) => {
+    const parsed = JSON.parse(raw);
+    if (channel === REDIS_CHANNELS.pricing) {
+        const { eventId } = parsed;
+        if (eventId) lastPricing.set(eventId, parsed);
+
+        wss.clients.forEach((c: any) => {
+            if (c.readyState !== 1 || c.eventId !== eventId) return;
+            c.send(JSON.stringify({ type: 'pricing', payload: parsed }));
+        });
+        return;
+    }
+    const { eventId, trades, depth } = parsed;
+    if (!eventId) return;
 
     if (depth) lastDepth.set(eventId, depth);
 
@@ -35,43 +91,43 @@ sub.on('message', (_, raw) => {
 });
 
 
-wss.on('connection', (ws: any, req) => {
-
+wss.on('connection', async (ws: any, req) => {
     try {
-        
-    
         const url = new URL(req.url || '/', `ws://${req.headers.host}`);
         const eventId = url.searchParams.get('eventId');
 
-
         const cookies = cookie?.parse(req?.headers?.cookie || '');
-
         const token = cookies['ACCESS_TOKEN']!;
-      
-    
 
+        if (JWT_SECRET) {
+            try {
+                jwt.verify(token, JWT_SECRET);
+            } catch {
+                ws.close(4001, 'unauthorized');
+                return;
+            }
+        }
 
-    if (JWT_SECRET) {
-        try { 
-            jwt.verify(token,JWT_SECRET)}
-        catch { ws.close(4001, 'unauthorized'); return; }
-    }
+        ws.eventId = eventId;
 
-    ws.eventId = eventId;
+        // await hydrateEventCache(eventId);
 
-    if (eventId && lastDepth.has(eventId)) {
-        ws.send(JSON.stringify({ type: 'depth', payload: lastDepth.get(eventId) }));
-    }
+        if (eventId && lastDepth.has(eventId)) {
+            ws.send(JSON.stringify({ type: 'depth', payload: lastDepth.get(eventId) }));
+        }
+        if (eventId && lastPricing.has(eventId)) {
+            ws.send(JSON.stringify({ type: 'pricing', payload: lastPricing.get(eventId) }));
+        }
 
-    ws.isAlive = true;
-    ws.on("message", () => {
-        ws.send(JSON.stringify({ msg: "Hello!" }))
-    })
-    ws.on('pong', () => (ws.isAlive = true));
-    ws.on('error', (data:any) => {
-        console.log("error in connecting to websocket server:", data)
+        ws.isAlive = true;
+        ws.on("message", () => {
+            ws.send(JSON.stringify({ msg: "Hello!" }))
+        })
+        ws.on('pong', () => (ws.isAlive = true));
+        ws.on('error', (data:any) => {
+            console.log("error in connecting to websocket server:", data)
 
-    })
+        })
     } catch (error) {
         console.log('err',error);       
     }    

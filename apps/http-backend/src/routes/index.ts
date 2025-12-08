@@ -1,14 +1,16 @@
 import express, { Router } from "express"
 import { prisma, OrderSide, OrderStatus } from "@repo/db"
-import Redis from "ioredis"
 
 import { randomUUID } from "crypto"
-import { TradeMsg, OrderBook, cancelSchema, orderSchema, balanceSchema, eventCreateSchema, eventUpdateSchema, EventSchema } from "@repo/common"
+import { z } from "zod"
+import { TradeMsg, OrderBook, cancelSchema, orderSchema, balanceSchema, eventCreateSchema, eventUpdateSchema, EventSchema, liquidateSchema, REDIS_CHANNELS, redisKeys, RedisChannel } from "@repo/common"
 
 import { EventEmitter } from "events"
-import { auth, requireAdmin } from "../middlewares"
+import { auth, requireAdmin, zodHandler } from "../middlewares"
 import { AuthRequest } from "../interfaces"
 import { logger } from "../lib/logger"
+import { marketMaker } from "../lib/marketMakerClient"
+import { redis } from "../lib/redis"
 import authRouter from "./auth"
 const router: Router = express.Router()
 
@@ -27,6 +29,14 @@ const fromMinorUnits = (value: string, decimal = DEFAULT_DECIMALS) =>
 const addMinorUnits = (value: string, delta: bigint) => (BigInt(value) + delta).toString()
 
 const calcStake = (price: number, qty: number, decimal = DEFAULT_DECIMALS) => toMinorUnits(price, decimal) * BigInt(qty)
+
+const eventIdQuerySchema = z.object({
+    eventId: z.string().uuid(),
+})
+
+const ordersQuerySchema = z.object({
+    status: z.enum(["OPEN", "FILLED", "CANCELLED", "ALL"]).optional(),
+})
 
 function getBook(eventId: string) {
     if (!books.has(eventId)) books.set(eventId, new OrderBook())
@@ -47,19 +57,42 @@ function publishTrades(eventId: string, trades: TradeMsg[]) {
 }
 
 const bus = new EventEmitter()
-const pub = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
-    retryStrategy: a => Math.min(a * 200, 2_000),
-})
 bus.on("trade", (msg) => {
-    pub.xadd("trades", "*", "data", JSON.stringify(msg))
+    redis.xadd(redisKeys.tradesStream, "*", "data", JSON.stringify(msg))
 })
 
-function publish(channel: string, payload: unknown) {
-    pub.publish(channel, JSON.stringify(payload))
+function publish(channel: RedisChannel, payload: unknown) {
+    const serialized = JSON.stringify(payload)
+    redis.publish(channel, serialized)
+    persistLastPayload(channel, serialized, payload)
 }
 
-bus.on("trade", (trades: TradeMsg[]) => publish("trade", trades))
-bus.on("depth", (d: any) => publish("depth", d))
+function persistLastPayload(channel: RedisChannel, serializedPayload: string, payload: unknown) {
+    if (!payload || typeof payload !== "object") return
+    const eventId = (payload as { eventId?: string }).eventId
+    if (!eventId) return
+
+    let key: string | null = null
+    if (channel === REDIS_CHANNELS.depth) key = redisKeys.lastDepth(eventId)
+    if (channel === REDIS_CHANNELS.pricing) key = redisKeys.lastPricing(eventId)
+    if (!key) return
+
+    redis.set(key, serializedPayload).catch((err) => logger.error({ err, channel, eventId }, "Failed to persist Redis payload"))
+}
+
+bus.on("trade", (payload) => publish(REDIS_CHANNELS.trade, payload))
+bus.on("depth", (d: any) => publish(REDIS_CHANNELS.depth, d))
+const publishPricing = async (eventId: string) => {
+    const state = await marketMaker.getState(eventId)
+    if (!state) return
+    const decimals = state.decimals ?? DEFAULT_DECIMALS
+    publish(REDIS_CHANNELS.pricing, {
+        eventId,
+        state,
+        priceYes: fromMinorUnits(state.priceYesPaise, decimals),
+        priceNo: fromMinorUnits(state.priceNoPaise, decimals),
+    })
+}
 
 router.get("/hello", async (_req, res) => {
     res.status(200).json({ msg: "hello" })
@@ -70,17 +103,12 @@ router.get("/hello", async (_req, res) => {
 router.use("/auth", authRouter)
 
 router.use(auth)
-router.get("/events", async (req, res) => {
+router.get("/events", zodHandler({ query: EventSchema }), async (req: AuthRequest, res) => {
     try {
-        const parsed = EventSchema.safeParse(req.query)
-        if (!parsed.success) {
-            res.status(400).json({ error: parsed.error.flatten() })
-            return
-        }
-
+        const filters = (req.validated?.query as z.infer<typeof EventSchema>) ?? {}
         const events = await prisma.event.findMany({
             where: {
-                ...parsed.data
+                ...filters
             }
         })
         res.status(200).json(events)
@@ -92,15 +120,9 @@ router.get("/events", async (req, res) => {
 
 })
 
-router.post("/orders", async (req: AuthRequest, res) => {
+router.post("/orders", zodHandler({ body: orderSchema }), async (req: AuthRequest, res) => {
     try {
-        const parsed = orderSchema.safeParse(req.body)
-        if (!parsed.success) {
-            res.status(400).json({ error: parsed.error.flatten() })
-            return
-        }
-
-        const { eventId, side, price, qty } = parsed.data
+        const { eventId, side, price, qty, isExit } = req.validated?.body as z.infer<typeof orderSchema>
         const userId = req.userId as string
 
         const eventRow = await prisma.event.findUnique({ where: { id: eventId } })
@@ -116,6 +138,11 @@ router.post("/orders", async (req: AuthRequest, res) => {
         }
 
         const decimals = user.decimal ?? DEFAULT_DECIMALS
+        try {
+            await marketMaker.seedMarket(eventId, { decimals })
+        } catch (err) {
+            logger.warn({ err, eventId }, "Failed to seed market maker state")
+        }
         const priceMinor = toMinorUnits(price, decimals)
         const stakeMinor = priceMinor * BigInt(qty)
         const balanceMinor = BigInt(user.balancePaise)
@@ -148,7 +175,7 @@ router.post("/orders", async (req: AuthRequest, res) => {
             })
 
             const trades = getBook(eventId).addOrder({
-                id: dbOrder.id, userId, side, price, qty, createdAt: Date.now(),
+                id: dbOrder.id, userId, side, price, qty, createdAt: Date.now(), isExit,
             })
             for (const t of trades) {
                 const tradePriceMinor = toMinorUnits(t.price, decimals)
@@ -212,6 +239,12 @@ router.post("/orders", async (req: AuthRequest, res) => {
             }
         })
 
+        if (result.trades.length) {
+            void marketMaker.applyTrades(eventId, result.trades.map((t) => ({ side: t.side, qty: t.qty, decimals })))
+                .then(() => publishPricing(eventId))
+                .catch((err: unknown) => logger.error({ err, eventId }, "Market maker update failed"))
+        }
+
         res.status(200).json({ orderId: result.dbOrder.id, trades: result.trades })
     } catch (e: any) {
         if (e?.message === "FUNDS") {
@@ -220,6 +253,36 @@ router.post("/orders", async (req: AuthRequest, res) => {
         }
         logger.error({ err: e }, "Order placement failed")
         res.status(500).json({ error: "server error" })
+    }
+})
+
+router.post("/liquidate", zodHandler({ body: liquidateSchema }), async (req: AuthRequest, res) => {
+    try {
+        const { eventId, side, qty } = req.validated?.body as z.infer<typeof liquidateSchema>
+        const eventRow = await prisma.event.findUnique({ where: { id: eventId } })
+        if (!eventRow || eventRow.status !== "OPEN") {
+            res.status(404).json({ error: "event_closed_or_missing" })
+            return
+        }
+
+        const quote = await marketMaker.getQuote(eventId)
+        const decimals = quote.state.decimals ?? DEFAULT_DECIMALS
+        const exitPrice = side === "YES" ? quote.priceYes : quote.priceNo
+        const platformSide = side === "YES" ? "NO" : "YES"
+
+        const updatedState = await marketMaker.applyTrades(eventId, [{ side: platformSide, qty, decimals }])
+        void publishPricing(eventId)
+
+        res.status(200).json({
+            ok: true,
+            exitPrice,
+            valuePaise: toMinorUnits(exitPrice, decimals).toString(),
+            state: updatedState,
+            note: "Exit fills against platform inventory; settlement/position accounting should be handled by the caller.",
+        })
+    } catch (error) {
+        logger.error({ err: error }, "Liquidation failed")
+        res.status(500).json({ error: "internal_error" })
     }
 })
 
@@ -250,14 +313,15 @@ router.get("/me/balance", async (req: AuthRequest, res) => {
         res.status(500).json({ error: "server error!" })
     }
 })
-router.get("/me/orders", async (req: AuthRequest, res) => {
+router.get("/me/orders", zodHandler({ query: ordersQuerySchema }), async (req: AuthRequest, res) => {
 
     try {
         const userId = req.userId as string
-        const status = (req.query.status as OrderStatus || "OPEN").toUpperCase()
+        const { status } = (req.validated?.query as z.infer<typeof ordersQuerySchema> | undefined) ?? {}
+        const normalizedStatus = (status ?? "OPEN") as string
 
-        const where = { userId } as any
-        if (status !== "ALL") where.status = status
+        const where: { userId: string; status?: OrderStatus } = { userId }
+        if (normalizedStatus !== "ALL") where.status = normalizedStatus as OrderStatus
 
         const orders = await prisma.order.findMany({
             where,
@@ -282,6 +346,7 @@ router.get("/me/orders", async (req: AuthRequest, res) => {
         res.status(500).json({ error: "server error!" })
     }
 })
+
 router.get("/me/trades", async (req: AuthRequest, res) => {
 
     try {
@@ -309,16 +374,11 @@ router.get("/me/trades", async (req: AuthRequest, res) => {
         res.status(500).json({ error: "server error!" })
     }
 })
-router.post("/wallet/topup", async (req: AuthRequest, res) => {
+router.post("/wallet/topup", zodHandler({ body: balanceSchema }), async (req: AuthRequest, res) => {
 
     try {
         const userId = req.userId as string
-        const parsed = balanceSchema.safeParse(req.body)
-        if (!parsed.success) {
-            res.status(400).json({ error: parsed.error.flatten() })
-            return
-        }
-        const { amt } = parsed.data
+        const { amt } = req.validated?.body as z.infer<typeof balanceSchema>
         const user = await prisma.user.findUnique({
             where: { id: userId },
             select: { balancePaise: true, decimal: true }
@@ -344,14 +404,9 @@ router.post("/wallet/topup", async (req: AuthRequest, res) => {
         res.status(500).json({ error: "server error!" })
     }
 })
-router.delete("/orders/:id", async (req: AuthRequest, res) => {
+router.delete("/orders/:id", zodHandler({ params: cancelSchema }), async (req: AuthRequest, res) => {
     try {
-        const result = cancelSchema.safeParse({ params: req?.params })
-        if (!result.success) {
-            res.status(400).json({ error: result.error.flatten() })
-            return
-        }
-        const id = result.data.params
+        const { id } = req.validated?.params as z.infer<typeof cancelSchema>
         const userId = req.userId as string
 
         const row = await prisma.order.findUnique({ where: { id } })
@@ -392,13 +447,8 @@ router.delete("/orders/:id", async (req: AuthRequest, res) => {
 })
 
 
-router.get("/depth", (req, res) => {
-    const eventId = req.query.eventId as string | undefined
-    if (!eventId) {
-        res.status(400).json({ error: "eventId_required" })
-        return
-    }
-
+router.get("/depth", zodHandler({ query: eventIdQuerySchema }), (req: AuthRequest, res) => {
+    const { eventId } = req.validated?.query as z.infer<typeof eventIdQuerySchema>
     const book = books.get(eventId)
     if (!book) {
         res.status(200).json({ bids: [], asks: [] })
@@ -407,32 +457,44 @@ router.get("/depth", (req, res) => {
 
     res.status(200).json({ bids: book.depth("YES"), asks: book.depth("NO") })
 })
-router.get("/probability", (req, res) => {
-    const eventId = req.query.eventId as string | undefined
-    if (!eventId) {
-        res.status(400).json({ error: "eventId_required" })
-        return
-    }
-    const book = books.get(eventId)
-    if (!book) {
-        res.status(200).json({ probability: 0.5 })
-        return
-    }
+router.get("/probability", zodHandler({ query: eventIdQuerySchema }), async (req: AuthRequest, res) => {
+    try {
+        const { eventId } = req.validated?.query as z.infer<typeof eventIdQuerySchema>
+        const mmState = await marketMaker.getState(eventId)
+        if (mmState) {
+            const decimals = mmState.decimals ?? DEFAULT_DECIMALS
+            const priceYes = fromMinorUnits(mmState.priceYesPaise, decimals)
+            const priceNo = fromMinorUnits(mmState.priceNoPaise, decimals)
+            res.status(200).json({ probability: priceYes / 10, priceYes, priceNo, source: "market_maker" })
+            return
+        }
 
-    const bestBid = book.depth("YES")[0]?.price ?? 0
-    const bestAsk = book.depth("NO")[0]?.price ?? 10
-    res.status(200).json({ probability: (bestBid + bestAsk) / 20 })
+        const book = books.get(eventId)
+        if (!book) {
+            res.status(200).json({ probability: 0.5 })
+            return
+        }
+
+        const bestBid = book.depth("YES")[0]?.price ?? 0
+        const bestAsk = book.depth("NO")[0]?.price ?? 10
+        res.status(200).json({ probability: (bestBid + bestAsk) / 20, source: "orderbook" })
+    } catch (error) {
+        logger.error({ err: error }, "Probability fetch failed")
+        res.status(500).json({ error: "internal_error" })
+    }
 })
 
 router.use(requireAdmin)
 
-router.post("/admin/event", async (req, res) => {
-    const parsed = eventCreateSchema.safeParse(req.body)
-    if (!parsed.success) {
-        res.status(400).json({ error: parsed.error.flatten() })
-        return
+router.post("/admin/event", zodHandler({ body: eventCreateSchema }), async (req: AuthRequest, res) => {
+    const payload = req.validated?.body as z.infer<typeof eventCreateSchema>
+    const ev = await prisma.event.create({ data: payload })
+    try {
+        await marketMaker.seedMarket(ev.id)
+        await publishPricing(ev.id)
+    } catch (err) {
+        logger.warn({ err, eventId: ev.id }, "Failed to seed market maker for new event")
     }
-    const ev = await prisma.event.create({ data: parsed.data })
     res.status(201).json(ev)
 })
 
@@ -441,14 +503,56 @@ router.get("/admin/event", async (_req, res) => {
     res.status(200).json(events)
 })
 
-router.post("/admin/event/:id", async (req, res) => {
-    const parsed = eventUpdateSchema.safeParse(req.body)
-    if (!parsed.success) {
-        res.status(400).json({ error: parsed.error.flatten() })
+const updateEvent = async (req: AuthRequest, res: express.Response) => {
+    try {
+        const { id } = req.validated?.params as z.infer<typeof cancelSchema>
+        const payload = req.validated?.body as z.infer<typeof eventUpdateSchema>
+        const ev = await prisma.event.update({ where: { id }, data: { ...payload } })
+        res.status(200).json(ev)
+    } catch (error: any) {
+        if (error?.code === "P2025") {
+            res.status(404).json({ error: "not_found" })
+            return
+        }
+        logger.error({ err: error }, "Event update failed")
+        res.status(500).json({ error: "internal_error" })
+    }
+}
+
+router.post("/admin/event/:id", zodHandler({ body: eventUpdateSchema, params: cancelSchema }), updateEvent)
+router.put("/admin/event/:id", zodHandler({ body: eventUpdateSchema, params: cancelSchema }), updateEvent)
+
+router.delete("/admin/event/:id", zodHandler({ params: cancelSchema }), async (req: AuthRequest, res) => {
+    const { id } = req.validated?.params as z.infer<typeof cancelSchema>
+    try {
+        await prisma.event.delete({ where: { id } })
+    } catch (error: any) {
+        if (error?.code === "P2025") {
+            res.status(404).json({ error: "not_found" })
+            return
+        }
+        if (error?.code === "P2003") {
+            res.status(409).json({ error: "event_in_use" })
+            return
+        }
+        logger.error({ err: error, eventId: id }, "Event delete failed")
+        res.status(500).json({ error: "internal_error" })
         return
     }
-    const ev = await prisma.event.update({ where: { id: req.params.id }, data: { status: parsed.data.status } })
-    res.status(200).json(ev)
+
+    books.delete(id)
+    try {
+        await Promise.all([
+            redis.del(redisKeys.lastDepth(id)),
+            redis.del(redisKeys.lastPricing(id)),
+            redis.del(redisKeys.marketMakerState(id)),
+            marketMaker.reset(id),
+        ])
+    } catch (err) {
+        logger.warn({ err, eventId: id }, "Event cleanup failed")
+    }
+
+    res.status(200).json({ ok: true })
 })
 
 export default router

@@ -14,8 +14,13 @@ export const orderSchema = z.object({
     eventId:z.string().uuid(),
     isExit: z.boolean().default(false)
 });
+export const liquidateSchema=z.object({
+    eventId: z.string().uuid(),
+    side: z.enum(["YES", "NO"]).transform((v) => v as Side),
+    qty:z.number().int().positive()
+})
 export const cancelSchema = z.object({
-    params:  z.string().uuid() ,
+    id:  z.string().uuid() ,
 });
 export const balanceSchema = z.object({
     amt: z.number().positive("Amount must be greater than zero").max(10000,"maximum toptup of 10k is allowed")

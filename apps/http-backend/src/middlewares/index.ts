@@ -1,8 +1,9 @@
 import { ACCESS_TOKEN } from "@repo/common"
 import { NextFunction, Response } from "express"
-import { AuthRequest } from "../interfaces"
+import { AuthRequest, ValidatedInput } from "../interfaces"
 import { verifyToken } from "../helper"
 import { logger } from "../lib/logger"
+import { ZodError, ZodTypeAny } from "zod"
 
 export const getAuthToken = (req: AuthRequest) => {
     const header = req.get("authorization")
@@ -21,7 +22,7 @@ export const auth = (req: AuthRequest, res: Response, next: NextFunction) => {
     }
     try {
         const payload = verifyToken(ACCESS_TOKEN, token)
-        
+
         req.userId = payload.id
         req.role = payload.role
         next()
@@ -41,5 +42,54 @@ export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction
     } catch (error) {
         logger.error({ err: error }, "Admin guard failed")
         res.status(500).json({ success: false, error: { code: "admin_guard_error", message: "Internal Server Error" } })
+    }
+}
+
+interface schemaHandler {
+    body?: ZodTypeAny
+    params?: ZodTypeAny
+    query?: ZodTypeAny
+}
+export const zodHandler = (schema: schemaHandler) => (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+
+
+        const validated: ValidatedInput = {}
+        if (schema.body) {
+            validated.body = schema.body.parse(req.body)
+        }
+        if (schema.params) {
+
+            validated.params = schema.params.parse(req.params)
+        }
+
+        if (schema.query) {
+            validated.query = schema.query.parse(req.query)
+        }
+
+        req.validated = validated
+        next()
+    } catch (error) {
+        console.log('error in parsing', error);
+        if (error instanceof ZodError) {
+            const details = error.issues.map((e) => {
+                return ({
+                    path: e.path.join("."),
+                    message: e.message,
+                })
+            })
+            res.status(400).json({
+                success: false,
+                error: "VALIDATION_ERROR",
+                details,
+            });
+
+            return
+        }
+        res.status(500).json({
+            success: false,
+            error: "INTERNAL_SERVER_ERROR",
+        });
+
     }
 }
