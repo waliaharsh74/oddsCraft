@@ -21,6 +21,7 @@ const PLATFORM_SEED_QTY = 10_000
 const PLATFORM_SEED_PRICE = 5
 
 const DEFAULT_DECIMALS = 2
+const LIQUIDATION_PRICE = 5
 
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
 
@@ -340,27 +341,132 @@ router.post("/orders", zodHandler({ body: orderSchema }), async (req: AuthReques
 
 router.post("/liquidate", zodHandler({ body: liquidateSchema }), async (req: AuthRequest, res) => {
     try {
-        const { eventId, side, qty } = req.validated?.body as z.infer<typeof liquidateSchema>
+        const { eventId, side, qty: qtyInput, notional } = req.validated?.body as z.infer<typeof liquidateSchema>
+        const userId = req.userId as string
+
         const eventRow = await prisma.event.findUnique({ where: { id: eventId } })
         if (!eventRow || eventRow.status !== "OPEN") {
             res.status(404).json({ error: "event_closed_or_missing" })
             return
         }
 
-        const quote = await marketMaker.getQuote(eventId)
-        const decimals = quote.state.decimals ?? DEFAULT_DECIMALS
-        const exitPrice = side === "YES" ? quote.priceYes : quote.priceNo
-        const platformSide = side === "YES" ? "NO" : "YES"
+        const user = await prisma.user.findUnique({ where: { id: userId }, select: { balancePaise: true, decimal: true } })
+        if (!user) {
+            res.status(404).json({ error: "user_not_found" })
+            return
+        }
 
-        const updatedState = await marketMaker.applyTrades(eventId, [{ side: platformSide, qty, decimals }])
-        void publishPricing(eventId)
+        const decimals = user.decimal ?? DEFAULT_DECIMALS
+        const priceMinor = toMinorUnits(LIQUIDATION_PRICE, decimals)
+        const derivedQty = qtyInput
+            ?? (notional !== undefined
+                ? Number(toMinorUnits(notional, decimals) / priceMinor)
+                : 0)
+
+        if (!derivedQty || derivedQty <= 0) {
+            res.status(400).json({ error: "invalid_liquidation_size" })
+            return
+        }
+
+        const notionalMinor = priceMinor * BigInt(derivedQty)
+        const balanceMinor = BigInt(user.balancePaise)
+        if (balanceMinor < notionalMinor) {
+            res.status(400).json({ error: "insufficient_balance" })
+            return
+        }
+
+        const platformSide = side === "YES" ? "NO" : "YES"
+        const tradeId = randomUUID()
+
+        const platformUser = await resolvePlatformUser()
+
+        const tradeMsg: TradeMsg = {
+            tradeId,
+            side,
+            price: LIQUIDATION_PRICE,
+            qty: derivedQty,
+            taker: userId,
+            maker: platformUser.id,
+            makerOrderId: "",
+            remainingMakerQty: 0,
+            ts: Date.now(),
+        }
+
+        const updatedState = await prisma.$transaction(async (tx) => {
+            const platform = await tx.user.findUnique({ where: { id: platformUser.id }, select: { balancePaise: true, decimal: true } })
+            if (!platform) throw new Error("platform_user_missing")
+
+            const platformDecimals = platform.decimal ?? DEFAULT_DECIMALS
+            const platformPriceMinor = toMinorUnits(LIQUIDATION_PRICE, platformDecimals)
+
+            const userOrder = await tx.order.create({
+                data: {
+                    id: randomUUID(),
+                    userId,
+                    side,
+                    pricePaise: priceMinor.toString(),
+                    decimal: decimals,
+                    qty: derivedQty,
+                    openQty: 0,
+                    status: OrderStatus.FILLED,
+                    eventId,
+                },
+            })
+
+            const platformOrder = await tx.order.create({
+                data: {
+                    id: randomUUID(),
+                    userId: platformUser.id,
+                    side: platformSide as OrderSide,
+                    pricePaise: platformPriceMinor.toString(),
+                    decimal: platformDecimals,
+                    qty: derivedQty,
+                    openQty: 0,
+                    status: OrderStatus.FILLED,
+                    eventId,
+                },
+            })
+
+            tradeMsg.makerOrderId = platformOrder.id
+
+            await tx.trade.create({
+                data: {
+                    id: tradeId,
+                    orderAggressorId: userOrder.id,
+                    makerOrderId: platformOrder.id,
+                    side: side as OrderSide,
+                    pricePaise: priceMinor.toString(),
+                    decimal: decimals,
+                    qty: derivedQty,
+                    takerId: userId,
+                    makerId: platformUser.id,
+                    eventId,
+                },
+            })
+
+            await tx.user.update({
+                where: { id: userId },
+                data: { balancePaise: addMinorUnits(user.balancePaise, -notionalMinor) },
+            })
+
+            await tx.user.update({
+                where: { id: platformUser.id },
+                data: { balancePaise: addMinorUnits(platform.balancePaise, notionalMinor) },
+            })
+
+            return marketMaker.applyTrades(eventId, [{ side: platformSide, qty: derivedQty, decimals }])
+        })
+
+        bus.emit("trade", { eventId, trades: [tradeMsg] })
+        publishDepth(eventId)
+        publishPricing(eventId).catch((err) => logger.error({ err, eventId }, "Liquidation pricing publish failed"))
 
         res.status(200).json({
             ok: true,
-            exitPrice,
-            valuePaise: toMinorUnits(exitPrice, decimals).toString(),
+            price: LIQUIDATION_PRICE,
+            qty: derivedQty,
+            notionalPaise: notionalMinor.toString(),
             state: updatedState,
-            note: "Exit fills against platform inventory; settlement/position accounting should be handled by the caller.",
         })
     } catch (error) {
         logger.error({ err: error }, "Liquidation failed")

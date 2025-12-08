@@ -17,7 +17,11 @@ export const orderSchema = z.object({
 export const liquidateSchema=z.object({
     eventId: z.string().uuid(),
     side: z.enum(["YES", "NO"]).transform((v) => v as Side),
-    qty:z.number().int().positive()
+    qty:z.number().int().positive().optional(),
+    notional: z.number().positive().optional(),
+}).refine((payload) => payload.qty !== undefined || payload.notional !== undefined, {
+    message: "qty_or_notional_required",
+    path: ["qty"],
 })
 export const cancelSchema = z.object({
     id:  z.string().uuid() ,
