@@ -1,84 +1,67 @@
-# Turborepo starter
+# OddsCraft
 
-This Turborepo starter is maintained by the Turborepo core team.
+OddsCraft is a multi-service trading playground for binary event markets. It includes an HTTP API for account management and order entry, a WebSocket gateway for real-time market data, and a Next.js web client that surfaces both. Redis coordinates shared market state while Postgres persists accounts, orders, trades, and settlements.
 
-## Using this example
+## Feature overview
+- **Auto-seeded liquidity:** A built-in market-maker seeds each event with initial depth and updates prices in Redis as user trades arrive, keeping HTTP and WebSocket backends in sync.
+- **Limit & market orders:** Orders are persisted in Postgres with maker/taker attribution. Pricing updates and fills are fanned out through Redis so connected clients see depth changes immediately.
+- **Liquidation & settlement hooks:** Event outcomes and dispute tracking live in the schema, enabling liquidation/settlement flows that reconcile user balances after markets close.
 
-Run the following command:
+## Service layout
+- **HTTP backend (`apps/http-backend`):** Express API for auth, balances, order entry, and market lifecycle. Uses Prisma against Postgres and publishes market depth/pricing to Redis. Issues HTTP-only JWT cookies that the WebSocket gateway re-validates.
+- **WebSocket backend (`apps/ws-backend`):** Listens to Redis pub/sub channels and cached keys for the latest depth, trades, and market-maker pricing, then streams them to subscribed clients. Incoming connections must present the HTTP-issued access token cookie.
+- **Web client (`apps/web`):** Next.js UI that calls the HTTP API for mutations and subscribes to the WebSocket gateway for live prices, depth, and trades.
 
-```sh
-npx create-turbo@latest
+Both backends share Redis for caching market-maker state and last-known depth/pricing, keeping new clients hydrated without round-trips to Postgres.
+
+## Prerequisites
+- Node.js 18+ and pnpm (`corepack enable` or `npm i -g pnpm`).
+- Postgres 15+ and Redis 7+. The included `docker-compose.yaml` exposes both at `localhost:5432` and `localhost:6379`.
+
+Install workspace dependencies:
+
+```bash
+pnpm install
 ```
 
-## What's inside?
+## Environment variables
+### HTTP backend (`apps/http-backend`)
+- `DATABASE_URL` – Postgres connection string (e.g., `postgresql://postgres:postgres@localhost:5432/oddsdb`).
+- `REDIS_URL` – Redis connection string (defaults to `redis://localhost:6379`).
+- `ACCESS_JWT_SECRET` / `REFRESH_JWT_SECRET` – Secrets for issuing/verifying auth cookies.
+- `FRONTEND_URL` – Allowed CORS origin (defaults to `http://localhost:3000`).
+- `PORT` – HTTP port (defaults to `3001`).
 
-This Turborepo includes the following packages/apps:
+### WebSocket backend (`apps/ws-backend`)
+- `REDIS_URL` – Redis connection string (defaults to `redis://localhost:6379`).
+- `ACCESS_JWT_SECRET` – Must match the HTTP backend so cookie verification succeeds.
+- `PORT` – WebSocket port (defaults to `8081`).
 
-### Apps and Packages
+### Web client (`apps/web`)
+- `NEXT_PUBLIC_API_URL` – Base URL for the HTTP backend (e.g., `http://localhost:3001`).
+- `NEXT_PUBLIC_WS_URL` – WebSocket gateway URL (e.g., `ws://localhost:8081`).
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+## Local development
+1. Start Postgres and Redis (either locally or via Docker):
+   ```bash
+   docker compose up db redis
+   ```
+2. Generate Prisma client and apply migrations to the development database (from repo root):
+   ```bash
+   pnpm --filter @repo/db build
+   pnpm --filter http-backend migrate
+   ```
+3. Run the services in watch mode:
+   ```bash
+   pnpm dev --filter http-backend --filter ws-backend --filter web --parallel
+   ```
+   The web client will render at `http://localhost:3000`, talking to the HTTP API on `3001` and WebSocket gateway on `8081`.
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+## One-shot startup (all apps)
+Use Docker Compose to boot every service with sensible defaults:
 
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
-pnpm build
-```
-
-### Develop
-
-To develop all apps and packages, run the following command:
-
-```
-cd my-turborepo
-pnpm dev
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-```
-cd my-turborepo
-npx turbo login
+```bash
+docker compose up --build
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-npx turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.com/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.com/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.com/docs/reference/configuration)
-- [CLI Usage](https://turborepo.com/docs/reference/command-line-reference)
+This launches Postgres, Redis, the HTTP backend (port 3001), WebSocket backend (port 8081), and the web client (port 3000) together. Update the environment blocks in `docker-compose.yaml` if you need custom credentials or hostnames.

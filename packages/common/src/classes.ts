@@ -24,7 +24,18 @@ export class BookLevel {
 
 export class OrderBook extends EventEmitter {
     bids = new Map<number, BookLevel>();
-    asks = new Map<number, BookLevel>(); 
+    asks = new Map<number, BookLevel>();
+
+    seedOrders(orders: OrderInMem[]) {
+        for (const order of orders) {
+            assertValid(order.price, order.qty)
+            const rounded = roundToTick(order.price)
+            const map = order.side === "YES" ? this.bids : this.asks
+            this.addLevel(map, { ...order, price: rounded })
+        }
+
+        if (orders.length) this.emitDepth()
+    }
 
     depth(side: Side) {
         const map = side === "YES" ? this.bids : this.asks;

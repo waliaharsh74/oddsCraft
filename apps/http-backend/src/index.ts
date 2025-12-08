@@ -2,7 +2,7 @@ import "dotenv/config"
 import express from "express"
 import cors from "cors"
 import cookieParser from "cookie-parser"
-import router from "./routes"
+import router, { hydrateBooksFromDb } from "./routes"
 import { corsOptions } from "./config/env"
 import { logger } from "./lib/logger"
 import { errorHandler, notFoundHandler } from "./middlewares/error"
@@ -22,6 +22,14 @@ app.use("/api/v1", router)
 app.use(notFoundHandler)
 app.use(errorHandler)
 
-app.listen(port, () => {
-    logger.info({ port }, "Server is running")
+async function bootstrap() {
+    await hydrateBooksFromDb()
+    app.listen(port, () => {
+        logger.info({ port }, "Server is running")
+    })
+}
+
+bootstrap().catch((err) => {
+    logger.error({ err }, "Failed to bootstrap service")
+    process.exit(1)
 })
