@@ -5,13 +5,16 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+    moduleFormat = "cjs"
+
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
+
 
 model User {
   id            String   @id @default(uuid())
@@ -105,18 +108,18 @@ enum DisputeStatus {
 }
 
 model Event {
-  id          String        @id @default(uuid())
-  title       String
-  description String?
-  startsAt    DateTime
-  endsAt      DateTime
-  status      EventStatus   @default(OPEN)
-  outcome     OutcomeStaus?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  orders      Order[]       @relation("EventOrders")
-  trade       Trade[]       @relation("EventTrades")
-  dispute     Dispute?
+  id               String            @id @default(uuid())
+  title            String
+  description      String?
+  startsAt         DateTime
+  endsAt           DateTime
+  status           EventStatus       @default(OPEN)
+  outcome          OutcomeStaus?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  orders           Order[]           @relation("EventOrders")
+  trade            Trade[]           @relation("EventTrades")
+  dispute          Dispute?
 
   @@index([status, endsAt])
 }
@@ -128,3 +131,5 @@ model Dispute {
   event   Event         @relation(fields: [eventId], references: [id])
   status  DisputeStatus @default(INREVIEW)
 }
+
+

@@ -12,9 +12,9 @@ const port = process.env.PORT || 3000
 const app = express()
 
 app.set("trust proxy", 1)
-  app.use(pinoHttp({ logger }));
+app.use(pinoHttp({ logger }))
 
-  app.use(cors(corsOptions))
+app.use(cors(corsOptions))
 app.use(cookieParser())
 app.use(express.json())
 

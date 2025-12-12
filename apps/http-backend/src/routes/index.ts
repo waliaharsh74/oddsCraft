@@ -1,5 +1,5 @@
 import express, { Router } from "express"
-import { prisma, OrderSide, OrderStatus, Role } from "@repo/db"
+import { prisma, OrderSide, OrderStatus, Role,   } from "@repo/db"
 
 import { randomUUID } from "crypto"
 import { z } from "zod"
@@ -9,9 +9,10 @@ import { EventEmitter } from "events"
 import { auth, requireAdmin, zodHandler } from "../middlewares"
 import { AuthRequest } from "../interfaces"
 import { logger } from "../lib/logger"
-import { marketMaker } from "../lib/marketMakerClient"
+// import { marketMaker } from "../lib/marketMakerClient"
 import { redis } from "../lib/redis"
 import authRouter from "./auth"
+// import type { MarketMakerState as MarketMakerSnapshot } from "../market-maker"
 const router: Router = express.Router()
 
 const books = new Map<string, OrderBook>()
@@ -102,80 +103,120 @@ function persistLastPayload(channel: RedisChannel, serializedPayload: string, pa
 
 bus.on("trade", (payload) => publish(REDIS_CHANNELS.trade, payload))
 bus.on("depth", (d: any) => publish(REDIS_CHANNELS.depth, d))
-const publishPricing = async (eventId: string) => {
-    const state = await marketMaker.getState(eventId)
-    if (!state) return
-    const decimals = state.decimals ?? DEFAULT_DECIMALS
-    publish(REDIS_CHANNELS.pricing, {
-        eventId,
-        state,
-        priceYes: fromMinorUnits(state.priceYesPaise, decimals),
-        priceNo: fromMinorUnits(state.priceNoPaise, decimals),
-    })
-}
+// const publishPricing = async (eventId: string) => {
+//     const state = await marketMaker.getState(eventId)
+//     if (!state) return
+//     const decimals = state.decimals ?? DEFAULT_DECIMALS
+//     publish(REDIS_CHANNELS.pricing, {
+//         eventId,
+//         state,
+//         priceYes: fromMinorUnits(state.priceYesPaise, decimals),
+//         priceNo: fromMinorUnits(state.priceNoPaise, decimals),
+//     })
+// }
 
-async function seedPlatformOrders(eventId: string) {
-    const { yesOrder, noOrder } = await prisma.$transaction(async (tx) => {
-        const platformUser = await resolvePlatformUser(tx)
-        const user = await tx.user.findUnique({
-            where: { id: platformUser.id },
-            select: { balancePaise: true, decimal: true },
-        })
+// const mapDbStateToSnapshot = (row: DbMarketMakerState): MarketMakerSnapshot => ({
+//     eventId: row.eventId,
+//     priceYesPaise: row.priceYesPaise,
+//     priceNoPaise: row.priceNoPaise,
+//     decimals: row.decimals,
+//     seedLiquidity: row.seedLiquidity,
+//     sensitivity: row.sensitivity,
+//     inventoryYes: row.inventoryYes,
+//     inventoryNo: row.inventoryNo,
+//     netYesExposure: row.netYesExposure,
+//     lastUpdated: row.lastUpdated.getTime(),
+// })
 
-        if (!user) throw new Error("platform_user_missing")
+// async function hydrateMarketMakerCacheFromDb(eventIds?: string[]) {
+//     try {
+//         const rows = await prisma.marketMakerState.findMany(
+//             eventIds && eventIds.length ? { where: { eventId: { in: eventIds } } } : undefined
+//         )
+//         await Promise.all(
+//             rows.map(async (row) => {
+//                 const state = mapDbStateToSnapshot(row)
+//                 const decimals = state.decimals ?? DEFAULT_DECIMALS
+//                 const pricingPayload = {
+//                     eventId: state.eventId,
+//                     state,
+//                     priceYes: fromMinorUnits(state.priceYesPaise, decimals),
+//                     priceNo: fromMinorUnits(state.priceNoPaise, decimals),
+//                 }
 
-        const userDecimals = user.decimal ?? DEFAULT_DECIMALS
-        const priceMinor = toMinorUnits(PLATFORM_SEED_PRICE, userDecimals)
-        const stakePerSide = priceMinor * BigInt(PLATFORM_SEED_QTY)
-        const totalStake = stakePerSide * 2n
-        const balanceMinor = BigInt(user.balancePaise)
-        const topUp = totalStake > balanceMinor ? totalStake - balanceMinor : 0n
-        const finalBalance = balanceMinor + topUp - totalStake
+//                 await Promise.all([
+//                     redis.set(redisKeys.marketMakerState(state.eventId), JSON.stringify(state)),
+//                     redis.set(redisKeys.lastPricing(state.eventId), JSON.stringify(pricingPayload)),
+//                 ])
+//             })
+//         )
+//     } catch (err) {
+//         logger.warn({ err, eventIds }, "Failed to hydrate market maker cache from DB")
+//     }
+// }
 
-        const orderData = {
-            userId: platformUser.id,
-            pricePaise: priceMinor.toString(),
-            decimal: userDecimals,
-            qty: PLATFORM_SEED_QTY,
-            openQty: PLATFORM_SEED_QTY,
-            status: "OPEN" as const,
-            eventId,
-        }
+// async function seedPlatformOrders(eventId: string) {
+//     const { yesOrder, noOrder } = await prisma.$transaction(async (tx) => {
+//         const platformUser = await resolvePlatformUser(tx)
+//         const user = await tx.user.findUnique({
+//             where: { id: platformUser.id },
+//             select: { balancePaise: true, decimal: true },
+//         })
 
-        const [yesOrder, noOrder] = await Promise.all([
-            tx.order.create({ data: { ...orderData, side: OrderSide.YES } }),
-            tx.order.create({ data: { ...orderData, side: OrderSide.NO } }),
-        ])
+//         if (!user) throw new Error("platform_user_missing")
 
-        await tx.user.update({ where: { id: platformUser.id }, data: { balancePaise: finalBalance.toString() } })
+//         const userDecimals = user.decimal ?? DEFAULT_DECIMALS
+//         const priceMinor = toMinorUnits(PLATFORM_SEED_PRICE, userDecimals)
+//         const stakePerSide = priceMinor * BigInt(PLATFORM_SEED_QTY)
+//         const totalStake = stakePerSide * 2n
+//         const balanceMinor = BigInt(user.balancePaise)
+//         const topUp = totalStake > balanceMinor ? totalStake - balanceMinor : 0n
+//         const finalBalance = balanceMinor + topUp - totalStake
 
-        return { yesOrder, noOrder, decimals: userDecimals }
-    })
+//         const orderData = {
+//             userId: platformUser.id,
+//             pricePaise: priceMinor.toString(),
+//             decimal: userDecimals,
+//             qty: PLATFORM_SEED_QTY,
+//             openQty: PLATFORM_SEED_QTY,
+//             status: "OPEN" as const,
+//             eventId,
+//         }
 
-    getBook(eventId).seedOrders([
-        {
-            id: yesOrder.id,
-            userId: yesOrder.userId,
-            side: yesOrder.side,
-            price: PLATFORM_SEED_PRICE,
-            qty: yesOrder.openQty,
-            createdAt: yesOrder.createdAt.getTime(),
-            isExit: false,
-        },
-        {
-            id: noOrder.id,
-            userId: noOrder.userId,
-            side: noOrder.side,
-            price: PLATFORM_SEED_PRICE,
-            qty: noOrder.openQty,
-            createdAt: noOrder.createdAt.getTime(),
-            isExit: false,
-        },
-    ])
+//         const [yesOrder, noOrder] = await Promise.all([
+//             tx.order.create({ data: { ...orderData, side: OrderSide.YES } }),
+//             tx.order.create({ data: { ...orderData, side: OrderSide.NO } }),
+//         ])
 
-    publishDepth(eventId)
-    await publishPricing(eventId)
-}
+//         await tx.user.update({ where: { id: platformUser.id }, data: { balancePaise: finalBalance.toString() } })
+
+//         return { yesOrder, noOrder, decimals: userDecimals }
+//     })
+
+//     getBook(eventId).seedOrders([
+//         {
+//             id: yesOrder.id,
+//             userId: yesOrder.userId,
+//             side: yesOrder.side,
+//             price: PLATFORM_SEED_PRICE,
+//             qty: yesOrder.openQty,
+//             createdAt: yesOrder.createdAt.getTime(),
+//             isExit: false,
+//         },
+//         {
+//             id: noOrder.id,
+//             userId: noOrder.userId,
+//             side: noOrder.side,
+//             price: PLATFORM_SEED_PRICE,
+//             qty: noOrder.openQty,
+//             createdAt: noOrder.createdAt.getTime(),
+//             isExit: false,
+//         },
+//     ])
+
+//     publishDepth(eventId)
+//     await publishPricing(eventId)
+// }
 
 router.get("/hello", async (_req, res) => {
     res.status(200).json({ msg: "hello" })
@@ -221,11 +262,7 @@ router.post("/orders", zodHandler({ body: orderSchema }), async (req: AuthReques
         }
 
         const decimals = user.decimal ?? DEFAULT_DECIMALS
-        try {
-            await marketMaker.seedMarket(eventId, { decimals })
-        } catch (err) {
-            logger.warn({ err, eventId }, "Failed to seed market maker state")
-        }
+
         const priceMinor = toMinorUnits(price, decimals)
         const stakeMinor = priceMinor * BigInt(qty)
         const balanceMinor = BigInt(user.balancePaise)
@@ -322,11 +359,7 @@ router.post("/orders", zodHandler({ body: orderSchema }), async (req: AuthReques
             }
         })
 
-        if (result.trades.length) {
-            void marketMaker.applyTrades(eventId, result.trades.map((t) => ({ side: t.side, qty: t.qty, decimals })))
-                .then(() => publishPricing(eventId))
-                .catch((err: unknown) => logger.error({ err, eventId }, "Market maker update failed"))
-        }
+
 
         res.status(200).json({ orderId: result.dbOrder.id, trades: result.trades })
     } catch (e: any) {
@@ -454,12 +487,10 @@ router.post("/liquidate", zodHandler({ body: liquidateSchema }), async (req: Aut
                 data: { balancePaise: addMinorUnits(platform.balancePaise, notionalMinor) },
             })
 
-            return marketMaker.applyTrades(eventId, [{ side: platformSide, qty: derivedQty, decimals }])
         })
 
         bus.emit("trade", { eventId, trades: [tradeMsg] })
         publishDepth(eventId)
-        publishPricing(eventId).catch((err) => logger.error({ err, eventId }, "Liquidation pricing publish failed"))
 
         res.status(200).json({
             ok: true,
@@ -648,14 +679,7 @@ router.get("/depth", zodHandler({ query: eventIdQuerySchema }), (req: AuthReques
 router.get("/probability", zodHandler({ query: eventIdQuerySchema }), async (req: AuthRequest, res) => {
     try {
         const { eventId } = req.validated?.query as z.infer<typeof eventIdQuerySchema>
-        const mmState = await marketMaker.getState(eventId)
-        if (mmState) {
-            const decimals = mmState.decimals ?? DEFAULT_DECIMALS
-            const priceYes = fromMinorUnits(mmState.priceYesPaise, decimals)
-            const priceNo = fromMinorUnits(mmState.priceNoPaise, decimals)
-            res.status(200).json({ probability: priceYes / 10, priceYes, priceNo, source: "market_maker" })
-            return
-        }
+
 
         const book = books.get(eventId)
         if (!book) {
@@ -673,7 +697,11 @@ router.get("/probability", zodHandler({ query: eventIdQuerySchema }), async (req
 })
 
 export async function hydrateBooksFromDb() {
-    const openOrders = await prisma.order.findMany({ where: { status: OrderStatus.OPEN }, orderBy: { createdAt: "asc" } })
+    const openOrders = await prisma.order.findMany({
+        where: { status: OrderStatus.OPEN },
+        orderBy: { createdAt: "asc" },
+    })
+
     const ordersByEvent = new Map<string, OrderInMem[]>();
 
     for (const order of openOrders) {
@@ -681,6 +709,7 @@ export async function hydrateBooksFromDb() {
 
         const decimals = order.decimal ?? DEFAULT_DECIMALS
         const price = fromMinorUnits(order.pricePaise, decimals)
+
         const seeded: OrderInMem = {
             id: order.id,
             userId: order.userId,
@@ -697,16 +726,18 @@ export async function hydrateBooksFromDb() {
     }
 
     for (const [eventId, orders] of ordersByEvent) {
-        getBook(eventId).seedOrders(orders)
-        publishDepth(eventId)
-
         try {
-            await marketMaker.seedMarket(eventId)
-            await publishPricing(eventId)
+            const sortedOrders = [...orders].sort((a, b) => a.createdAt - b.createdAt)
+            const book = new OrderBook()
+            book.seedOrders(sortedOrders)
+            books.set(eventId, book)
+            publishDepth(eventId)
         } catch (err) {
-            logger.warn({ err, eventId }, "Failed to publish pricing during hydration")
+            logger.error({ err, eventId }, "Failed to hydrate order book from DB")
         }
     }
+
+    logger.info({ hydratedEvents: ordersByEvent.size, hydratedOrders: openOrders.length }, "Hydrated order books from DB")
 }
 
 router.use(requireAdmin)
@@ -715,15 +746,53 @@ router.post("/admin/event", zodHandler({ body: eventCreateSchema }), async (req:
     try {
         const payload = req.validated?.body as z.infer<typeof eventCreateSchema>
         const ev = await prisma.event.create({ data: payload })
+        const decimals = DEFAULT_DECIMALS
+        const qty = payload.liquidity ?? 1000
+        const userId= req.userId as string
+        const price=5.0
+        const priceMinor = toMinorUnits(price, decimals)
+        const stakeMinor = priceMinor * BigInt(qty)
+        prisma.$transaction(async (tx) => {
+           const orderYes=await tx.order.create({
+                data: {
+                    side: "YES",
+                    userId,
+                    status: "OPEN",
 
-        try {
-            await marketMaker.seedMarket(ev.id)
-            await publishPricing(ev.id)
-        } catch (err) {
-            logger.warn({ err, eventId: ev.id }, "Failed to seed market maker for new event")
-        }
+                    id: randomUUID(),
 
-        await seedPlatformOrders(ev.id)
+                    pricePaise: priceMinor.toString(),
+                    decimal: decimals,
+                    qty,
+                    openQty: qty,
+                    eventId: ev.id,
+
+                }
+            })
+             const orderNo=await tx.order.create({
+                data: {
+                    side: "NO",
+                    userId: req.userId as string,
+                    status: "OPEN",
+
+                    id: randomUUID(),
+
+                    pricePaise: priceMinor.toString(),
+                    decimal: decimals,
+                    qty,
+                    openQty: qty,
+                    eventId: ev.id,
+
+                }
+            })
+           getBook(ev.id).seedOrders([{
+                id: orderYes.id, userId, side:orderYes.side, price, qty, createdAt: Date.now(), isExit:false,
+            },{
+                id: orderNo.id, userId, side:orderNo.side, price, qty, createdAt: Date.now(), isExit:false,
+            }])
+
+        })
+
 
         res.status(201).json(ev)
     } catch (err) {
@@ -780,7 +849,6 @@ router.delete("/admin/event/:id", zodHandler({ params: cancelSchema }), async (r
             redis.del(redisKeys.lastDepth(id)),
             redis.del(redisKeys.lastPricing(id)),
             redis.del(redisKeys.marketMakerState(id)),
-            marketMaker.reset(id),
         ])
     } catch (err) {
         logger.warn({ err, eventId: id }, "Event cleanup failed")

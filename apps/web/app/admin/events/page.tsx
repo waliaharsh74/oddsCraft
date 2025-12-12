@@ -98,8 +98,13 @@ function AdminEvents() {
                                     <td className="p-2">{new Date(ev.endsAt).toLocaleString()}</td>
                                     <td className="p-2">{ev.status}</td>
                                     <td className="p-2">
-                                        <Link href={`/admin/events/${ev.id}`}>
+                                        <Link href={`/events/${ev.id}`}>
                                             <Button size="sm" variant="glassy">View</Button>
+                                        </Link>
+                                    </td>
+                                    <td className="p-2">
+                                        <Link href={`/admin/events/${ev.id}`}>
+                                            <Button size="sm" variant="glassy">Edit</Button>
                                         </Link>
                                     </td>
                                     <td className="p-2">

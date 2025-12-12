@@ -34,6 +34,7 @@ export const eventCreateSchema = z.object({
     description: z.string().max(500).optional(),
     startsAt: z.coerce.date().optional().default(() => new Date()),
     endsAt: z.coerce.date().min(new Date()),
+    liquidity:z.number().optional()
 });
 
 export const eventUpdateSchema = z.object({

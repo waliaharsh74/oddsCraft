@@ -14,8 +14,6 @@
     "default": "./dist"
   },
   "devDependencies": {
-    "@repo/common": "workspace:*",
-    "@repo/db": "workspace:*",
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "eslint": "^9.27.0",
@@ -26,6 +24,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@repo/common": "workspace:*",
+    "@repo/db": "workspace:*",
     "@types/cors": "^2.8.18",
     "@types/express": "^5.0.2",
     "@types/jsonwebtoken": "^9.0.9",

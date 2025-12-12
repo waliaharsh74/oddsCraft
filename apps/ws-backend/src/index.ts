@@ -3,6 +3,7 @@ import Redis from 'ioredis';
 import jwt from 'jsonwebtoken';
 import dotenv from "dotenv";
 import * as cookie from "cookie";
+import { prisma } from '@repo/db';
 import { REDIS_CHANNELS, redisKeys } from '@repo/common';
 dotenv.config()
 
@@ -16,9 +17,9 @@ const redis = new Redis(REDIS_URL, {
 const sub = new Redis(REDIS_URL, {
     retryStrategy: a => Math.min(a * 200, 2_000),
 });
-// sub.subscribe(REDIS_CHANNELS.trade, REDIS_CHANNELS.depth, REDIS_CHANNELS.pricing, err =>
-//     err && console.error('[WS] Redis sub error', err)
-// );
+sub.subscribe(REDIS_CHANNELS.trade, REDIS_CHANNELS.depth, REDIS_CHANNELS.pricing, err =>
+    err && console.error('[WS] Redis sub error', err)
+);
 
 const wss = new WebSocketServer({ port: PORT });
 console.log('[WS] gateway on', PORT);
@@ -29,6 +30,53 @@ const DEFAULT_DECIMALS = 2;
 
 const fromMinorUnits = (value: string | number, decimal = DEFAULT_DECIMALS) =>
     Number(BigInt(String(value))) / Math.pow(10, decimal);
+
+type MarketMakerSnapshot = {
+    eventId: string;
+    priceYesPaise: string;
+    priceNoPaise: string;
+    decimals: number;
+    seedLiquidity: number;
+    sensitivity: number;
+    inventoryYes: number;
+    inventoryNo: number;
+    netYesExposure: number;
+    lastUpdated: number;
+};
+
+
+
+const buildPricingPayload = (state: MarketMakerSnapshot) => {
+    const decimals = state.decimals ?? DEFAULT_DECIMALS;
+    return {
+        eventId: state.eventId,
+        state,
+        priceYes: fromMinorUnits(state.priceYesPaise, decimals),
+        priceNo: fromMinorUnits(state.priceNoPaise, decimals),
+    };
+};
+
+const cacheMarketMakerState = async (state: MarketMakerSnapshot) => {
+    const pricingPayload = buildPricingPayload(state);
+    await Promise.all([
+        redis.set(redisKeys.marketMakerState(state.eventId), JSON.stringify(state)),
+        redis.set(redisKeys.lastPricing(state.eventId), JSON.stringify(pricingPayload)),
+    ]);
+    lastPricing.set(state.eventId, pricingPayload);
+};
+
+// const hydrateMarketMakerCacheFromDb = async (eventId?: string | null) => {
+//     try {
+//         const rows = await prisma.marketMakerState.findMany(
+//             eventId ? { where: { eventId } } : undefined
+//         );
+//         await Promise.all(rows.map(async (row) => cacheMarketMakerState(mapDbStateToSnapshot(row))));
+//     } catch (err) {
+//         console.error('[WS] Failed to hydrate market maker cache from DB', err);
+//     }
+// };
+
+// hydrateMarketMakerCacheFromDb().catch((err) => console.error('[WS] Startup market maker cache hydration failed', err));
 
 const hydrateEventCache = async (eventId?: string | null) => {
     if (!eventId) return;
@@ -49,15 +97,11 @@ const hydrateEventCache = async (eventId?: string | null) => {
             } else {
                 const mmStateRaw = await redis.get(redisKeys.marketMakerState(eventId));
                 if (mmStateRaw) {
-                    const mmState = JSON.parse(mmStateRaw);
-                    const decimals = mmState.decimals ?? DEFAULT_DECIMALS;
-                    lastPricing.set(eventId, {
-                        eventId,
-                        state: mmState,
-                        priceYes: fromMinorUnits(mmState.priceYesPaise, decimals),
-                        priceNo: fromMinorUnits(mmState.priceNoPaise, decimals),
-                    });
-                }
+                    const mmState = JSON.parse(mmStateRaw) as MarketMakerSnapshot;
+                    const pricingPayload = buildPricingPayload(mmState);
+                    lastPricing.set(eventId, pricingPayload);
+                    await redis.set(redisKeys.lastPricing(eventId), JSON.stringify(pricingPayload));
+                } 
             }
         }
     } catch (err) {
@@ -110,7 +154,7 @@ wss.on('connection', async (ws: any, req) => {
 
         ws.eventId = eventId;
 
-        // await hydrateEventCache(eventId);
+        await hydrateEventCache(eventId);
 
         if (eventId && lastDepth.has(eventId)) {
             ws.send(JSON.stringify({ type: 'depth', payload: lastDepth.get(eventId) }));

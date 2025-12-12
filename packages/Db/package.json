@@ -15,14 +15,19 @@
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
+    "@types/node": "^22.15.3",
+    "@types/pg": "^8.15.6",
     "eslint": "^9.27.0",
-    "prisma": "6.8.2",
+    "prisma": "^7.1.0",
     "typescript": "5.8.2"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@prisma/client": "6.8.2"
+    "@prisma/adapter-pg": "^7.1.0",
+    "@prisma/client": "^7.1.0",
+    "dotenv": "^16.5.0",
+    "pg": "^8.16.3"
   }
 }

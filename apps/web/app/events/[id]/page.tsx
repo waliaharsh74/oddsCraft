@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import {
     Card, CardHeader, CardTitle, CardContent,
@@ -17,8 +17,8 @@ import { Minus, Plus } from 'lucide-react';
 import { Skeleton } from '@repo/ui/components/skeleton';
 import { OrderSide } from '@repo/db';
 import apiClient from '@/app/lib/api-client';
-import { getCookie, CLIENT_AUTH_COOKIE } from '@/app/lib/cookies';
 import { WS_BACKEND_URL } from '@/app/config';
+import useBalance from '@/app/hooks/useBalance';
 
 interface DepthRow { price: number; qty: number; }
 interface Depth { bids: DepthRow[]; asks: DepthRow[]; }
@@ -27,9 +27,13 @@ interface EventMeta { id: string; title: string; endsAt: string; }
 
 const WSS = WS_BACKEND_URL;
 
+const ORDER_TYPES = ['LIMIT', 'MARKET'] as const;
+type OrderType = typeof ORDER_TYPES[number];
+
+const LIQ_PRICE = 5.0;
+
 function TradeDashboard() {
     const { id: eventId } = useParams<{ id: string }>();
-    const [accessToken, setAccessToken] = useState<string | null>(null);
     const [marketYes, setMarketYes] = useState<number | null>(null);
 
     const [depth, setDepth] = useState<Depth>({ bids: [], asks: [] });
@@ -37,17 +41,16 @@ function TradeDashboard() {
     const [loading, setLoading] = useState(true);
 
     const [side, setSide] = useState<OrderSide>('YES');
+    const [orderType, setOrderType] = useState<OrderType>('LIMIT');
     const [price, setPrice] = useState(7.5);
     const [qty, setQty] = useState(100);
+    const [liqQty, setLiqQty] = useState('');
+    const [liqNotional, setLiqNotional] = useState('');
     const [msg, setMsg] = useState('');
-
-    // useEffect(() => {
-    //     console.log("cookies",getCookie(CLIENT_AUTH_COOKIE))
-    //     const syncToken = () => setAccessToken(getCookie(CLIENT_AUTH_COOKIE));
-    //     syncToken();
-    //     window.addEventListener("focus", syncToken);
-    //     return () => window.removeEventListener("focus", syncToken);
-    // }, []);
+    const [liqMsg, setLiqMsg] = useState('');
+    const [posting, setPosting] = useState(false);
+    const [liqPosting, setLiqPosting] = useState(false);
+    const { balance, refreshBalance } = useBalance();
 
     useEffect(() => {
         if (!eventId) return;
@@ -76,12 +79,12 @@ function TradeDashboard() {
         if ( !eventId) return;
 
         const ws = new WebSocket(`${WSS}?eventId=${eventId}`);
-       
+
         ws.onopen=()=>{
 
             ws.send(JSON.stringify({msg:"Hi!"}))
         }
-        
+
 
         ws.onmessage = (e) => {
             const m = JSON.parse(e.data);
@@ -98,7 +101,7 @@ function TradeDashboard() {
         };
 
         return () => ws.close();
-    }, [accessToken, eventId]);
+    }, [eventId]);
 
     useEffect(() => {
         if (!depth || !depth.bids.length || !depth.asks.length) return;
@@ -110,16 +113,70 @@ function TradeDashboard() {
         if (marketYes === null) setMarketYes(midYes);
     }, [depth, marketYes]);
 
+    const effectivePrice = useMemo(() => {
+        if (orderType === 'LIMIT') return price;
+        if (marketYes === null) return price;
+        return side === 'YES' ? marketYes : 10 - marketYes;
+    }, [marketYes, orderType, price, side]);
+
+    const stake = useMemo(() => qty * effectivePrice, [effectivePrice, qty]);
+
+    const postBalance = useMemo(() => {
+        if (balance === null) return null;
+        return balance - stake;
+    }, [balance, stake]);
+
+    const liqSize = useMemo(() => {
+        const q = Number(liqQty);
+        const n = Number(liqNotional);
+        if (!isNaN(q) && q > 0) return { qty: q, notional: q * LIQ_PRICE };
+        if (!isNaN(n) && n > 0) return { qty: n / LIQ_PRICE, notional: n };
+        return { qty: 0, notional: 0 };
+    }, [liqNotional, liqQty]);
+
+    const liqPostBalance = useMemo(() => {
+        if (balance === null) return null;
+        return balance - liqSize.notional;
+    }, [balance, liqSize.notional]);
+
     async function place() {
         if (!eventId) return;
+        setPosting(true);
         setMsg('posting...');
         try {
             await apiClient.post("/orders",
-                { eventId, side, price: +price, qty: +qty },
+                { eventId, side, price: +effectivePrice, qty: +qty, orderType },
             );
             setMsg('Order placed');
+            refreshBalance();
         } catch (err: any) {
             setMsg(`Error: ${err?.response?.data?.error || 'server'}`);
+        } finally {
+            setPosting(false);
+        }
+    }
+
+    async function liquidate() {
+        if (!eventId) return;
+        setLiqPosting(true);
+        setLiqMsg('processing...');
+        try {
+            const qtyPayload = Number(liqQty);
+            const notionalPayload = Number(liqNotional);
+            await apiClient.post('/liquidate', {
+                eventId,
+                side,
+                qty: !isNaN(qtyPayload) && qtyPayload > 0 ? qtyPayload : undefined,
+                notional: !isNaN(notionalPayload) && notionalPayload > 0 ? notionalPayload : undefined,
+            });
+            setLiqMsg('Liquidation placed');
+            setLiqQty('');
+            setLiqNotional('');
+            refreshBalance();
+        } catch (err: any) {
+            setLiqMsg(`Error: ${err?.response?.data?.error || 'server'}`);
+        } finally {
+            setLiqPosting(false);
         }
     }
 
@@ -186,7 +243,7 @@ function TradeDashboard() {
             <Card className='p-2 bg-[#171717] col col-span-1 sticky top-24 min-h-[350px]'>
                 <CardHeader><CardTitle className='text-xl'>New Order</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                    <CardAction>
+                    <CardAction className="">
                         <ToggleGroup
                             type="single"
                             defaultValue="YES"
@@ -197,10 +254,24 @@ function TradeDashboard() {
 
                         >
 
-
                             <ToggleGroupItem value='YES' className="rounded-full m-1 data-[state=on]:bg-white data-[state=on]:text-black ">YES</ToggleGroupItem>
                             <ToggleGroupItem value="NO" className="rounded-full m-1 data-[state=on]:bg-white data-[state=on]:text-black">NO</ToggleGroupItem>
 
+                        </ToggleGroup>
+
+                        <ToggleGroup
+                            type="single"
+                            defaultValue="LIMIT"
+                            value={orderType}
+                            onValueChange={(val: string) => { if (val) setOrderType(val as OrderType); }}
+                            variant="outline"
+                            className="@[767px]/card:flex"
+                        >
+                            {ORDER_TYPES.map((v) => (
+                                <ToggleGroupItem key={v} value={v} className="rounded-full m-1 data-[state=on]:bg-white data-[state=on]:text-black">
+                                    {v}
+                                </ToggleGroupItem>
+                            ))}
                         </ToggleGroup>
                     </CardAction>
                     <div >
@@ -214,7 +285,7 @@ function TradeDashboard() {
                                         size="icon"
                                         onClick={() => setPrice((prev) => Math.max(0.1, prev - 0.1))}
                                         className="text-black"
-                                        disabled={price <= 0.1}
+                                        disabled={price <= 0.1 || orderType === 'MARKET'}
                                     >
                                         <Minus className="h-4 w-4" />
                                     </Button>
@@ -223,11 +294,12 @@ function TradeDashboard() {
                                         min={0.1}
                                         max={9.9}
                                         step="0.1"
-                                        value={price.toFixed(1)}
+                                        value={orderType === 'MARKET' ? effectivePrice.toFixed(2) : price.toFixed(1)}
                                         onChange={(e) => {
                                             const val = parseFloat(e.target.value);
                                             if (!isNaN(val) && val > 0 && val < 10) setPrice(val);
                                         }}
+                                        disabled={orderType === 'MARKET'}
                                         className="flex-1 text-black w-16 text-center"
                                     />
 
@@ -236,7 +308,7 @@ function TradeDashboard() {
                                         size="icon"
                                         onClick={() => setPrice((prev) => Math.min(9.9, prev + 0.1))}
                                         className="text-black"
-                                        disabled={price >= 9.9}
+                                        disabled={price >= 9.9 || orderType === 'MARKET'}
                                     >
                                         <Plus className="h-4 w-4" />
                                     </Button>
@@ -291,7 +363,13 @@ function TradeDashboard() {
 
                         </div>
                     </div>
-                    <Button className="w-full" onClick={place}>Submit</Button>
+                    <div className="text-sm text-zinc-400 space-y-1">
+                        <div>Estimated cost: <span className="text-white">₹{stake.toFixed(2)}</span></div>
+                        {balance !== null && (
+                            <div>Balance after order: <span className={postBalance !== null && postBalance < 0 ? 'text-red-400' : 'text-white'}>₹{postBalance !== null ? postBalance.toFixed(2) : '--'}</span></div>
+                        )}
+                    </div>
+                    <Button className="w-full" onClick={place} disabled={posting}>{posting ? 'Submitting...' : 'Submit'}</Button>
                     {marketYes !== null && (
                         <div className="mt-1 text-sm font-medium text-zinc-400">
                             Market&nbsp;
@@ -301,6 +379,43 @@ function TradeDashboard() {
                         </div>
                     )}
                     {msg && <p className="text-xs">{msg}</p>}
+                </CardContent>
+            </Card>
+            <Card className='p-2 bg-[#171717] col col-span-1 sticky top-[calc(24rem+96px)] min-h-[240px]'>
+                <CardHeader><CardTitle className='text-xl'>Liquidation @ ₹{LIQ_PRICE.toFixed(1)}</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                    <div className="grid grid-cols-1 gap-3">
+                        <div className="space-y-1">
+                            <span className='text-sm'>Qty</span>
+                            <Input
+                                type="number"
+                                placeholder="Enter qty"
+                                value={liqQty}
+                                onChange={(e) => setLiqQty(e.target.value)}
+                                className="text-black"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <span className='text-sm'>Amount</span>
+                            <Input
+                                type="number"
+                                placeholder="Enter amount"
+                                value={liqNotional}
+                                onChange={(e) => setLiqNotional(e.target.value)}
+                                className="text-black"
+                            />
+                        </div>
+                    </div>
+                    <div className="text-sm text-zinc-400 space-y-1">
+                        <div>Notional: <span className="text-white">₹{liqSize.notional.toFixed(2)}</span></div>
+                        {balance !== null && (
+                            <div>Balance after liq: <span className={liqPostBalance !== null && liqPostBalance < 0 ? 'text-red-400' : 'text-white'}>₹{liqPostBalance !== null ? liqPostBalance.toFixed(2) : '--'}</span></div>
+                        )}
+                    </div>
+                    <Button className="w-full" onClick={liquidate} disabled={liqPosting || (!liqSize.qty && !liqSize.notional)}>
+                        {liqPosting ? 'Submitting...' : 'Liquidate'}
+                    </Button>
+                    {liqMsg && <p className="text-xs">{liqMsg}</p>}
                 </CardContent>
             </Card>
         </div>
