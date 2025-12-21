@@ -4,12 +4,16 @@ import jwt from 'jsonwebtoken';
 import dotenv from "dotenv";
 import * as cookie from "cookie";
 import { prisma } from '@repo/db';
-import { REDIS_CHANNELS, redisKeys } from '@repo/common';
+import { ACCESS_TOKEN, REDIS_CHANNELS, redisKeys } from '@repo/common';
+import type { MarketMakerSnapshot } from '@repo/common';
 dotenv.config()
 
 const PORT = Number(process.env.PORT || 4000);
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
-const JWT_SECRET = process.env.ACCESS_JWT_SECRET || '';
+const JWT_SECRET = process.env.ACCESS_JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error('ACCESS_JWT_SECRET missing for WS authentication');
+}
 
 const redis = new Redis(REDIS_URL, {
     retryStrategy: a => Math.min(a * 200, 2_000),
@@ -31,21 +35,6 @@ const DEFAULT_DECIMALS = 2;
 const fromMinorUnits = (value: string | number, decimal = DEFAULT_DECIMALS) =>
     Number(BigInt(String(value))) / Math.pow(10, decimal);
 
-type MarketMakerSnapshot = {
-    eventId: string;
-    priceYesPaise: string;
-    priceNoPaise: string;
-    decimals: number;
-    seedLiquidity: number;
-    sensitivity: number;
-    inventoryYes: number;
-    inventoryNo: number;
-    netYesExposure: number;
-    lastUpdated: number;
-};
-
-
-
 const buildPricingPayload = (state: MarketMakerSnapshot) => {
     const decimals = state.decimals ?? DEFAULT_DECIMALS;
     return {
@@ -56,14 +45,6 @@ const buildPricingPayload = (state: MarketMakerSnapshot) => {
     };
 };
 
-const cacheMarketMakerState = async (state: MarketMakerSnapshot) => {
-    const pricingPayload = buildPricingPayload(state);
-    await Promise.all([
-        redis.set(redisKeys.marketMakerState(state.eventId), JSON.stringify(state)),
-        redis.set(redisKeys.lastPricing(state.eventId), JSON.stringify(pricingPayload)),
-    ]);
-    lastPricing.set(state.eventId, pricingPayload);
-};
 
 // const hydrateMarketMakerCacheFromDb = async (eventId?: string | null) => {
 //     try {
@@ -141,15 +122,18 @@ wss.on('connection', async (ws: any, req) => {
         const eventId = url.searchParams.get('eventId');
 
         const cookies = cookie?.parse(req?.headers?.cookie || '');
-        const token = cookies['ACCESS_TOKEN']!;
+        const token = cookies[ACCESS_TOKEN];
 
-        if (JWT_SECRET) {
-            try {
-                jwt.verify(token, JWT_SECRET);
-            } catch {
-                ws.close(4001, 'unauthorized');
-                return;
-            }
+        if (!token) {
+            ws.close(4001, 'unauthorized');
+            return;
+        }
+
+        try {
+            jwt.verify(token, JWT_SECRET);
+        } catch {
+            ws.close(4001, 'unauthorized');
+            return;
         }
 
         ws.eventId = eventId;

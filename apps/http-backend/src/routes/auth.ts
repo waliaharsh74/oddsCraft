@@ -3,10 +3,10 @@ import bcrypt from "bcryptjs"
 import { prisma } from "@repo/db"
 import { ACCESS_TOKEN, REFRESH_TOKEN, signinSchema, signupSchema } from "@repo/common"
 import { z } from "zod"
+import type { AuthRequest } from "@repo/common"
 import { getAuthToken, zodHandler } from "../middlewares"
 import { clearAuthCookies, setAuthCookies, verifyToken } from "../helper"
 import { logger } from "../lib/logger"
-import { AuthRequest } from "../interfaces"
 
 const authRouter: Router = express.Router()
 

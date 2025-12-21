@@ -1,222 +1,19 @@
 import express, { Router } from "express"
-import { prisma, OrderSide, OrderStatus, Role,   } from "@repo/db"
+import { prisma, OrderSide, OrderStatus } from "@repo/db"
 
 import { randomUUID } from "crypto"
 import { z } from "zod"
-import { TradeMsg, OrderBook, cancelSchema, orderSchema, balanceSchema, eventCreateSchema, eventUpdateSchema, EventSchema, liquidateSchema, REDIS_CHANNELS, redisKeys, RedisChannel, OrderInMem } from "@repo/common"
+import { cancelSchema, orderSchema, balanceSchema, eventCreateSchema, eventUpdateSchema, EventSchema, liquidateSchema, redisKeys, OrderBook, OrderInMem, eventIdQuerySchema, ordersQuerySchema } from "@repo/common"
 
-import { EventEmitter } from "events"
+import type { AuthRequest } from "@repo/common"
 import { auth, requireAdmin, zodHandler } from "../middlewares"
-import { AuthRequest } from "../interfaces"
 import { logger } from "../lib/logger"
 // import { marketMaker } from "../lib/marketMakerClient"
 import { redis } from "../lib/redis"
 import authRouter from "./auth"
+import { addMinorUnits, books, calcStake, DEFAULT_DECIMALS, fromMinorUnits, getBook, LIQUIDATION_PRICE, publishDepth, publishTrades, toMinorUnits } from "../util"
 // import type { MarketMakerState as MarketMakerSnapshot } from "../market-maker"
 const router: Router = express.Router()
-
-const books = new Map<string, OrderBook>()
-
-const PLATFORM_USER_ID = process.env.PLATFORM_USER_ID
-const PLATFORM_SEED_QTY = 10_000
-const PLATFORM_SEED_PRICE = 5
-
-const DEFAULT_DECIMALS = 2
-const LIQUIDATION_PRICE = 5
-
-type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
-
-const toMinorUnits = (value: number, decimal = DEFAULT_DECIMALS) => {
-    const factor = Math.pow(10, decimal)
-    return BigInt(Math.round(value * factor))
-}
-
-const fromMinorUnits = (value: string, decimal = DEFAULT_DECIMALS) =>
-    Number(BigInt(value)) / Math.pow(10, decimal)
-
-const addMinorUnits = (value: string, delta: bigint) => (BigInt(value) + delta).toString()
-
-const calcStake = (price: number, qty: number, decimal = DEFAULT_DECIMALS) => toMinorUnits(price, decimal) * BigInt(qty)
-
-async function resolvePlatformUser(tx: TxClient | typeof prisma = prisma) {
-    if (PLATFORM_USER_ID) {
-        const explicit = await tx.user.findUnique({ where: { id: PLATFORM_USER_ID } })
-        if (explicit) return explicit
-        throw new Error("platform_user_missing")
-    }
-
-    const existingAdmin = await tx.user.findFirst({ where: { role: Role.ADMIN }, orderBy: { createdAt: "asc" } })
-    if (existingAdmin) return existingAdmin
-
-    throw new Error("platform_user_missing")
-}
-
-const eventIdQuerySchema = z.object({
-    eventId: z.string().uuid(),
-})
-
-const ordersQuerySchema = z.object({
-    status: z.enum(["OPEN", "FILLED", "CANCELLED", "ALL"]).optional(),
-})
-
-function getBook(eventId: string) {
-    if (!books.has(eventId)) books.set(eventId, new OrderBook())
-    return books.get(eventId)!
-}
-function publishDepth(eventId: string) {
-    const book = books.get(eventId)
-    if (!book) return
-    bus.emit("depth", {
-        eventId,
-        depth: { bids: book.depth("YES"), asks: book.depth("NO") },
-    })
-}
-
-
-function publishTrades(eventId: string, trades: TradeMsg[]) {
-    bus.emit("trade", { eventId, trades })
-}
-
-const bus = new EventEmitter()
-bus.on("trade", (msg) => {
-    redis.xadd(redisKeys.tradesStream, "*", "data", JSON.stringify(msg))
-})
-
-function publish(channel: RedisChannel, payload: unknown) {
-    const serialized = JSON.stringify(payload)
-    redis.publish(channel, serialized)
-    persistLastPayload(channel, serialized, payload)
-}
-
-function persistLastPayload(channel: RedisChannel, serializedPayload: string, payload: unknown) {
-    if (!payload || typeof payload !== "object") return
-    const eventId = (payload as { eventId?: string }).eventId
-    if (!eventId) return
-
-    let key: string | null = null
-    if (channel === REDIS_CHANNELS.depth) key = redisKeys.lastDepth(eventId)
-    if (channel === REDIS_CHANNELS.pricing) key = redisKeys.lastPricing(eventId)
-    if (!key) return
-
-    redis.set(key, serializedPayload).catch((err) => logger.error({ err, channel, eventId }, "Failed to persist Redis payload"))
-}
-
-bus.on("trade", (payload) => publish(REDIS_CHANNELS.trade, payload))
-bus.on("depth", (d: any) => publish(REDIS_CHANNELS.depth, d))
-// const publishPricing = async (eventId: string) => {
-//     const state = await marketMaker.getState(eventId)
-//     if (!state) return
-//     const decimals = state.decimals ?? DEFAULT_DECIMALS
-//     publish(REDIS_CHANNELS.pricing, {
-//         eventId,
-//         state,
-//         priceYes: fromMinorUnits(state.priceYesPaise, decimals),
-//         priceNo: fromMinorUnits(state.priceNoPaise, decimals),
-//     })
-// }
-
-// const mapDbStateToSnapshot = (row: DbMarketMakerState): MarketMakerSnapshot => ({
-//     eventId: row.eventId,
-//     priceYesPaise: row.priceYesPaise,
-//     priceNoPaise: row.priceNoPaise,
-//     decimals: row.decimals,
-//     seedLiquidity: row.seedLiquidity,
-//     sensitivity: row.sensitivity,
-//     inventoryYes: row.inventoryYes,
-//     inventoryNo: row.inventoryNo,
-//     netYesExposure: row.netYesExposure,
-//     lastUpdated: row.lastUpdated.getTime(),
-// })
-
-// async function hydrateMarketMakerCacheFromDb(eventIds?: string[]) {
-//     try {
-//         const rows = await prisma.marketMakerState.findMany(
-//             eventIds && eventIds.length ? { where: { eventId: { in: eventIds } } } : undefined
-//         )
-//         await Promise.all(
-//             rows.map(async (row) => {
-//                 const state = mapDbStateToSnapshot(row)
-//                 const decimals = state.decimals ?? DEFAULT_DECIMALS
-//                 const pricingPayload = {
-//                     eventId: state.eventId,
-//                     state,
-//                     priceYes: fromMinorUnits(state.priceYesPaise, decimals),
-//                     priceNo: fromMinorUnits(state.priceNoPaise, decimals),
-//                 }
-
-//                 await Promise.all([
-//                     redis.set(redisKeys.marketMakerState(state.eventId), JSON.stringify(state)),
-//                     redis.set(redisKeys.lastPricing(state.eventId), JSON.stringify(pricingPayload)),
-//                 ])
-//             })
-//         )
-//     } catch (err) {
-//         logger.warn({ err, eventIds }, "Failed to hydrate market maker cache from DB")
-//     }
-// }
-
-// async function seedPlatformOrders(eventId: string) {
-//     const { yesOrder, noOrder } = await prisma.$transaction(async (tx) => {
-//         const platformUser = await resolvePlatformUser(tx)
-//         const user = await tx.user.findUnique({
-//             where: { id: platformUser.id },
-//             select: { balancePaise: true, decimal: true },
-//         })
-
-//         if (!user) throw new Error("platform_user_missing")
-
-//         const userDecimals = user.decimal ?? DEFAULT_DECIMALS
-//         const priceMinor = toMinorUnits(PLATFORM_SEED_PRICE, userDecimals)
-//         const stakePerSide = priceMinor * BigInt(PLATFORM_SEED_QTY)
-//         const totalStake = stakePerSide * 2n
-//         const balanceMinor = BigInt(user.balancePaise)
-//         const topUp = totalStake > balanceMinor ? totalStake - balanceMinor : 0n
-//         const finalBalance = balanceMinor + topUp - totalStake
-
-//         const orderData = {
-//             userId: platformUser.id,
-//             pricePaise: priceMinor.toString(),
-//             decimal: userDecimals,
-//             qty: PLATFORM_SEED_QTY,
-//             openQty: PLATFORM_SEED_QTY,
-//             status: "OPEN" as const,
-//             eventId,
-//         }
-
-//         const [yesOrder, noOrder] = await Promise.all([
-//             tx.order.create({ data: { ...orderData, side: OrderSide.YES } }),
-//             tx.order.create({ data: { ...orderData, side: OrderSide.NO } }),
-//         ])
-
-//         await tx.user.update({ where: { id: platformUser.id }, data: { balancePaise: finalBalance.toString() } })
-
-//         return { yesOrder, noOrder, decimals: userDecimals }
-//     })
-
-//     getBook(eventId).seedOrders([
-//         {
-//             id: yesOrder.id,
-//             userId: yesOrder.userId,
-//             side: yesOrder.side,
-//             price: PLATFORM_SEED_PRICE,
-//             qty: yesOrder.openQty,
-//             createdAt: yesOrder.createdAt.getTime(),
-//             isExit: false,
-//         },
-//         {
-//             id: noOrder.id,
-//             userId: noOrder.userId,
-//             side: noOrder.side,
-//             price: PLATFORM_SEED_PRICE,
-//             qty: noOrder.openQty,
-//             createdAt: noOrder.createdAt.getTime(),
-//             isExit: false,
-//         },
-//     ])
-
-//     publishDepth(eventId)
-//     await publishPricing(eventId)
-// }
 
 router.get("/hello", async (_req, res) => {
     res.status(200).json({ msg: "hello" })
@@ -351,13 +148,8 @@ router.post("/orders", zodHandler({ body: orderSchema }), async (req: AuthReques
             return { dbOrder, trades }
         })
 
-        bus.emit("trade", { eventId, trades: result.trades })
-        bus.emit("depth", {
-            eventId, depth: {
-                bids: getBook(eventId).depth("YES"),
-                asks: getBook(eventId).depth("NO")
-            }
-        })
+        publishTrades(eventId, result.trades)
+        publishDepth(eventId)
 
 
 
@@ -374,7 +166,7 @@ router.post("/orders", zodHandler({ body: orderSchema }), async (req: AuthReques
 
 router.post("/liquidate", zodHandler({ body: liquidateSchema }), async (req: AuthRequest, res) => {
     try {
-        const { eventId, side, qty: qtyInput, notional } = req.validated?.body as z.infer<typeof liquidateSchema>
+        const { eventId, qty: qtyInput } = req.validated?.body as z.infer<typeof liquidateSchema>
         const userId = req.userId as string
 
         const eventRow = await prisma.event.findUnique({ where: { id: eventId } })
@@ -391,113 +183,75 @@ router.post("/liquidate", zodHandler({ body: liquidateSchema }), async (req: Aut
 
         const decimals = user.decimal ?? DEFAULT_DECIMALS
         const priceMinor = toMinorUnits(LIQUIDATION_PRICE, decimals)
-        const derivedQty = qtyInput
-            ?? (notional !== undefined
-                ? Number(toMinorUnits(notional, decimals) / priceMinor)
-                : 0)
+        const derivedQty = qtyInput ?? 0
 
         if (!derivedQty || derivedQty <= 0) {
             res.status(400).json({ error: "invalid_liquidation_size" })
             return
         }
 
-        const notionalMinor = priceMinor * BigInt(derivedQty)
+        const qty = derivedQty
+        const totalCostMinor = priceMinor * BigInt(qty) * BigInt(2)
         const balanceMinor = BigInt(user.balancePaise)
-        if (balanceMinor < notionalMinor) {
+        if (balanceMinor < totalCostMinor) {
             res.status(400).json({ error: "insufficient_balance" })
             return
         }
 
-        const platformSide = side === "YES" ? "NO" : "YES"
-        const tradeId = randomUUID()
+        const createdAt = Date.now()
 
-        const platformUser = await resolvePlatformUser()
+        const created = await prisma.$transaction(async (tx) => {
+            const updatedBalance = addMinorUnits(user.balancePaise, -totalCostMinor)
+            await tx.user.update({
+                where: { id: userId },
+                data: { balancePaise: updatedBalance },
+            })
 
-        const tradeMsg: TradeMsg = {
-            tradeId,
-            side,
-            price: LIQUIDATION_PRICE,
-            qty: derivedQty,
-            taker: userId,
-            maker: platformUser.id,
-            makerOrderId: "",
-            remainingMakerQty: 0,
-            ts: Date.now(),
-        }
-
-        const updatedState = await prisma.$transaction(async (tx) => {
-            const platform = await tx.user.findUnique({ where: { id: platformUser.id }, select: { balancePaise: true, decimal: true } })
-            if (!platform) throw new Error("platform_user_missing")
-
-            const platformDecimals = platform.decimal ?? DEFAULT_DECIMALS
-            const platformPriceMinor = toMinorUnits(LIQUIDATION_PRICE, platformDecimals)
-
-            const userOrder = await tx.order.create({
+            const yesOrder = await tx.order.create({
                 data: {
                     id: randomUUID(),
                     userId,
-                    side,
+                    side: "YES",
                     pricePaise: priceMinor.toString(),
                     decimal: decimals,
-                    qty: derivedQty,
-                    openQty: 0,
-                    status: OrderStatus.FILLED,
+                    qty,
+                    openQty: qty,
+                    status: OrderStatus.OPEN,
                     eventId,
                 },
             })
 
-            const platformOrder = await tx.order.create({
+            const noOrder = await tx.order.create({
                 data: {
                     id: randomUUID(),
-                    userId: platformUser.id,
-                    side: platformSide as OrderSide,
-                    pricePaise: platformPriceMinor.toString(),
-                    decimal: platformDecimals,
-                    qty: derivedQty,
-                    openQty: 0,
-                    status: OrderStatus.FILLED,
-                    eventId,
-                },
-            })
-
-            tradeMsg.makerOrderId = platformOrder.id
-
-            await tx.trade.create({
-                data: {
-                    id: tradeId,
-                    orderAggressorId: userOrder.id,
-                    makerOrderId: platformOrder.id,
-                    side: side as OrderSide,
+                    userId,
+                    side: "NO",
                     pricePaise: priceMinor.toString(),
                     decimal: decimals,
-                    qty: derivedQty,
-                    takerId: userId,
-                    makerId: platformUser.id,
+                    qty,
+                    openQty: qty,
+                    status: OrderStatus.OPEN,
                     eventId,
                 },
             })
 
-            await tx.user.update({
-                where: { id: userId },
-                data: { balancePaise: addMinorUnits(user.balancePaise, -notionalMinor) },
-            })
-
-            await tx.user.update({
-                where: { id: platformUser.id },
-                data: { balancePaise: addMinorUnits(platform.balancePaise, notionalMinor) },
-            })
-
+            return { yesOrder, noOrder }
         })
 
-        bus.emit("trade", { eventId, trades: [tradeMsg] })
+        const book = getBook(eventId)
+        book.seedOrders([
+            { id: created.yesOrder.id, userId, side: "YES", price: LIQUIDATION_PRICE, qty, createdAt, isExit: false },
+            { id: created.noOrder.id, userId, side: "NO", price: LIQUIDATION_PRICE, qty, createdAt, isExit: false },
+        ])
         publishDepth(eventId)
 
         res.status(200).json({
             ok: true,
             price: LIQUIDATION_PRICE,
-            qty: derivedQty,
-            notionalPaise: notionalMinor.toString(),
-            state: updatedState,
+            qty,
+            totalCostPaise: totalCostMinor.toString(),
+            yesOrderId: created.yesOrder.id,
+            noOrderId: created.noOrder.id,
         })
     } catch (error) {
         logger.error({ err: error }, "Liquidation failed")
@@ -633,11 +387,12 @@ router.delete("/orders/:id", zodHandler({ params: cancelSchema }), async (req: A
             res.status(404).json({ error: "not_found" })
             return
         }
-        const ok = getBook(row.eventId).cancel(id)
-        if (!ok) {
+        if (row.openQty !== row.qty) {
             res.status(410).json({ error: "already_matched" })
             return
         }
+        const book = books.get(row.eventId)
+        const cancelledInBook = book ? book.cancel(id) : false
         const refund = BigInt(row.pricePaise) * BigInt(row.openQty)
         await prisma.$transaction(async (tx) => {
             const user = await tx.user.findUnique({
@@ -657,7 +412,7 @@ router.delete("/orders/:id", zodHandler({ params: cancelSchema }), async (req: A
         })
 
         publishDepth(row.eventId)
-        res.status(200).json({ ok: true })
+        res.status(200).json({ ok: true, refundedPaise: refund.toString(), cancelledInBook })
     } catch (error) {
         logger.error({ err: error }, "Order cancel failed")
         res.status(500).json({ error: "internal_error" })
@@ -752,7 +507,7 @@ router.post("/admin/event", zodHandler({ body: eventCreateSchema }), async (req:
         const price=5.0
         const priceMinor = toMinorUnits(price, decimals)
         const stakeMinor = priceMinor * BigInt(qty)
-        prisma.$transaction(async (tx) => {
+        await prisma.$transaction(async (tx) => {
            const orderYes=await tx.order.create({
                 data: {
                     side: "YES",

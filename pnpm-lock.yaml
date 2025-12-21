@@ -331,6 +331,9 @@ importers:
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
+      '@types/express':
+        specifier: ^5.0.2
+        version: 5.0.2
       '@types/node':
         specifier: ^22.15.3
         version: 22.15.3

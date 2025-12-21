@@ -13,6 +13,7 @@
     "build": "tsc"
   },
   "devDependencies": {
+    "@types/express": "^5.0.2",
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^22.15.3",

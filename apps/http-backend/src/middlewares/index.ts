@@ -1,9 +1,9 @@
 import { ACCESS_TOKEN } from "@repo/common"
+import type { AuthRequest, SchemaHandler, ValidatedInput } from "@repo/common"
 import { NextFunction, Response } from "express"
-import { AuthRequest, ValidatedInput } from "../interfaces"
 import { verifyToken } from "../helper"
 import { logger } from "../lib/logger"
-import { ZodError, ZodTypeAny } from "zod"
+import { ZodError } from "zod"
 
 export const getAuthToken = (req: AuthRequest) => {
     const header = req.get("authorization")
@@ -45,12 +45,7 @@ export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction
     }
 }
 
-interface schemaHandler {
-    body?: ZodTypeAny
-    params?: ZodTypeAny
-    query?: ZodTypeAny
-}
-export const zodHandler = (schema: schemaHandler) => (req: AuthRequest, res: Response, next: NextFunction) => {
+export const zodHandler = (schema: SchemaHandler) => (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
 
 

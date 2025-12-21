@@ -4,14 +4,10 @@ import type { Response } from "express"
 import { logger } from "../lib/logger"
 
 import { ACCESS_TOKEN, REFRESH_TOKEN, USER_ID } from "@repo/common"
+import type { TokenPayload } from "@repo/common"
 import { accessTokenCookieOptions, refreshTokenCookieOptions, ACCESS_JWT_SECRET, REFRESH_JWT_SECRET, userIdCookieOptions } from "../config/env"
 
 dotenv.config()
-
-export interface TokenPayload {
-    id: string
-    role?: string
-}
 
 const tokenConfig = {
     [ACCESS_TOKEN]: { secret: ACCESS_JWT_SECRET, expiresIn: "15m" },
