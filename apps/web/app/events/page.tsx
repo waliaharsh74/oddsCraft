@@ -93,13 +93,8 @@ type Event = {
                                     </td>
                                 </tr>
                             ))}
-                            {/* {loading && (
-                                <tr>
-                                    <td colSpan={3} className="p-4 text-center text-zinc-500">
+                            
 
-                                        
-                                    </td>
-                                </tr>)} */}
 
                             {events.length === 0 && !msg && (
                                 <tr>

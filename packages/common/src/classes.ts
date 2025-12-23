@@ -7,11 +7,11 @@ const FACE_MIN = 0.0 + TICK_SIZE;
 const FACE_MAX = 10.0 - TICK_SIZE;         
 const MAX_LEVELS = 200
 
-function roundToTick(raw: number) {
+export function roundToTick(raw: number) {
     return Math.round(raw / TICK_SIZE) * TICK_SIZE;
 }
 
-function assertValid(price: number, qty: number) {
+export function assertValid(price: number, qty: number) {
     if (qty <= 0 || !Number.isFinite(qty)) throw new Error("bad_qty");
     const norm = roundToTick(price);
     if (Math.abs(norm - price) > 1e-9) throw new Error("bad_tick");

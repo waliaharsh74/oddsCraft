@@ -46,18 +46,18 @@ const buildPricingPayload = (state: MarketMakerSnapshot) => {
 };
 
 
-// const hydrateMarketMakerCacheFromDb = async (eventId?: string | null) => {
-//     try {
-//         const rows = await prisma.marketMakerState.findMany(
-//             eventId ? { where: { eventId } } : undefined
-//         );
-//         await Promise.all(rows.map(async (row) => cacheMarketMakerState(mapDbStateToSnapshot(row))));
-//     } catch (err) {
-//         console.error('[WS] Failed to hydrate market maker cache from DB', err);
-//     }
-// };
 
-// hydrateMarketMakerCacheFromDb().catch((err) => console.error('[WS] Startup market maker cache hydration failed', err));
+
+
+
+
+
+
+
+
+
+
+
 
 const hydrateEventCache = async (eventId?: string | null) => {
     if (!eventId) return;

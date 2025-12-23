@@ -2,22 +2,26 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from "@repo/ui/components/button";
-import { Menu, UserIcon, Wallet, X } from 'lucide-react';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@repo/ui/components/tooltip"
+import { Menu, UserIcon, X, User } from 'lucide-react';
 import { useRouter } from "next/navigation";
-import useBalance from '../hooks/useBalance';
 import { useAuthStore } from '../store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow'
 
 
 const Navbar = () => {
     const [isScrolled, setIsScrolled] = useState(false);
-    const { balance } = useBalance()
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const { isAuthenticated, logout, initialize, initialized } = useAuthStore(useShallow((state) => ({
+    const { isAuthenticated, logout, initialize, initialized, user } = useAuthStore(useShallow((state) => ({
         isAuthenticated: state.isAuthenticated,
         logout: state.logout,
         initialize: state.initialize,
         initialized: state.initialized,
+        user: state.user
     })))
     const router = useRouter();
 
@@ -42,14 +46,14 @@ const Navbar = () => {
     return (
         <nav
             className={`fixed w-full top-0 left-0 right-0 z-50 py-4 px-6 md:px-10 transition-all duration-300 ${isScrolled ? ' backdrop-blur-lg shadow-sm' : 'bg-transparent'
-          }`}
+                }`}
         >
             <div className="max-w-full mx-auto flex items-center justify-between">
                 <Link
                     href="/"
                     className="flex items-center space-x-2"
                 >
-                   
+
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500  flex items-center justify-center shadow-md">
                         <span className="text-white font-bold text-xl">OC</span>
                     </div>
@@ -72,12 +76,19 @@ const Navbar = () => {
                     {isAuthenticated && initialized && <div className="flex items-center space-x-4">
                         <Link href="/user">
                             <Button variant="outline" size="sm" className="px-4 hover:cursor-pointer">
-                                <Wallet className='' />
-                              
-                                <div className=''>₹{balance === null ? '--' : balance.toFixed(2)}</div>
+                                <User className='' />
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div >{(user?.email)?.slice(0, 7).toLocaleString() + "..."}</div>
+                                    </TooltipTrigger>
+                                    <TooltipContent className='p-2 m-1 bg-white'>
+                                        {(user?.email)}
+                                    </TooltipContent>
+                                </Tooltip>
+
                             </Button>
                         </Link>
-                        
+
 
                         <Button size="sm" className="px-4" onClick={handleLogOutNav}>
                             <UserIcon className="h-5 w-5 mr-1" />

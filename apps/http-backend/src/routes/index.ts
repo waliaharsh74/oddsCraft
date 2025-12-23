@@ -8,11 +8,11 @@ import { cancelSchema, orderSchema, balanceSchema, eventCreateSchema, eventUpdat
 import type { AuthRequest } from "@repo/common"
 import { auth, requireAdmin, zodHandler } from "../middlewares"
 import { logger } from "../lib/logger"
-// import { marketMaker } from "../lib/marketMakerClient"
+
 import { redis } from "../lib/redis"
 import authRouter from "./auth"
 import { addMinorUnits, books, calcStake, DEFAULT_DECIMALS, fromMinorUnits, getBook, LIQUIDATION_PRICE, publishDepth, publishTrades, toMinorUnits } from "../util"
-// import type { MarketMakerState as MarketMakerSnapshot } from "../market-maker"
+
 const router: Router = express.Router()
 
 router.get("/hello", async (_req, res) => {
