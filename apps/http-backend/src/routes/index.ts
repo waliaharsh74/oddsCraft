@@ -13,6 +13,8 @@ import { redis } from "../lib/redis"
 import authRouter from "./auth"
 import { addMinorUnits, books, calcStake, DEFAULT_DECIMALS, fromMinorUnits, getBook, LIQUIDATION_PRICE, publishDepth, publishTrades, toMinorUnits } from "../util"
 
+const MARKET_SWEEP_PRICE = 9.9
+
 const router: Router = express.Router()
 
 router.get("/hello", async (_req, res) => {
@@ -43,8 +45,11 @@ router.get("/events", zodHandler({ query: EventSchema }), async (req: AuthReques
 
 router.post("/orders", zodHandler({ body: orderSchema }), async (req: AuthRequest, res) => {
     try {
-        const { eventId, side, price, qty, isExit } = req.validated?.body as z.infer<typeof orderSchema>
+        const { eventId, side, price, qty, isExit, orderType } = req.validated?.body as z.infer<typeof orderSchema>
         const userId = req.userId as string
+        const normalizedOrderType = orderType ?? "LIMIT"
+        const isMarket = normalizedOrderType === "MARKET"
+        const orderPrice = isMarket ? MARKET_SWEEP_PRICE : price
 
         const eventRow = await prisma.event.findUnique({ where: { id: eventId } })
         if (!eventRow || eventRow.status !== "OPEN") {
@@ -60,7 +65,7 @@ router.post("/orders", zodHandler({ body: orderSchema }), async (req: AuthReques
 
         const decimals = user.decimal ?? DEFAULT_DECIMALS
 
-        const priceMinor = toMinorUnits(price, decimals)
+        const priceMinor = toMinorUnits(orderPrice, decimals)
         const stakeMinor = priceMinor * BigInt(qty)
         const balanceMinor = BigInt(user.balancePaise)
 
@@ -92,7 +97,7 @@ router.post("/orders", zodHandler({ body: orderSchema }), async (req: AuthReques
             })
 
             const trades = getBook(eventId).addOrder({
-                id: dbOrder.id, userId, side, price, qty, createdAt: Date.now(), isExit,
+                id: dbOrder.id, userId, side, price: orderPrice, qty, createdAt: Date.now(), isExit, orderType: normalizedOrderType,
             })
             for (const t of trades) {
                 const tradePriceMinor = toMinorUnits(t.price, decimals)
@@ -136,11 +141,30 @@ router.post("/orders", zodHandler({ body: orderSchema }), async (req: AuthReques
 
 
             const filled = trades.reduce((s, t) => s + t.qty, 0)
+            const remaining = qty - filled
+            const filledCostMinor = trades.reduce(
+                (s, t) => s + calcStake(t.price, t.qty, decimals),
+                BigInt(0)
+            )
+            const reservedRemainingMinor = isMarket ? BigInt(0) : priceMinor * BigInt(remaining)
+            const finalDebit = filledCostMinor + reservedRemainingMinor
+            const refund = stakeMinor - finalDebit
+            if (refund > 0n) {
+                const taker = await tx.user.findUnique({
+                    where: { id: userId },
+                    select: { balancePaise: true },
+                })
+                if (!taker) throw new Error("user_not_found")
+                await tx.user.update({
+                    where: { id: userId },
+                    data: { balancePaise: addMinorUnits(taker.balancePaise, refund) },
+                })
+            }
             await tx.order.update({
                 where: { id: dbOrder.id },
                 data: {
-                    openQty: qty - filled,
-                    status: filled === qty ? "FILLED" : "OPEN",
+                    openQty: isMarket ? 0 : remaining,
+                    status: isMarket ? (filled === qty ? "FILLED" : "CANCELLED") : (filled === qty ? "FILLED" : "OPEN"),
                 },
             })
 

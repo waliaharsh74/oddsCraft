@@ -17,10 +17,11 @@ export const signinSchema = signupSchema;
 
 export const orderSchema = z.object({
     side: z.enum(["YES", "NO"]).transform((v) => v as Side),
-    price: z.number().min(0).max(10),
+    price: z.number().min(0.1).max(9.9),
     qty: z.number().int().positive(),
     eventId:z.string().uuid(),
-    isExit: z.boolean().default(false)
+    isExit: z.boolean().default(false),
+    orderType: z.enum(["LIMIT", "MARKET"]).default("LIMIT"),
 });
 export const liquidateSchema=z.object({
     eventId: z.string().uuid(),
