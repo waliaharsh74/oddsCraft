@@ -10,7 +10,7 @@ import {
 } from '@repo/ui/components/card';
 import { Input } from '@repo/ui/components/input';
 import { Button } from '@repo/ui/components/button';
-import { Skeleton } from '@repo/ui/components/skeleton';
+import { TradePageShimmer } from '@/app/components/Shimmers';
 import { withProtectedRoute } from '@/app/context/withProtectedRoute';
 import {
   ToggleGroup,
@@ -311,15 +311,7 @@ function TradeDashboard() {
   }, [intent]);
 
   if (loading) {
-    return (
-      <div className="px-6 bg-zinc-950 min-h-screen py-24 grid lg:grid-cols-3 gap-4">
-        <div className="col-span-2 flex flex-col gap-4">
-          <Skeleton className="bg-zinc-500 h-[160px] rounded-xl" />
-          <Skeleton className="bg-zinc-500 h-[420px] rounded-xl" />
-        </div>
-        <Skeleton className="bg-zinc-500 h-[620px] rounded-xl sticky top-24" />
-      </div>
-    );
+    return <TradePageShimmer />;
   }
 
   const yesPx = marketYes ?? price;
@@ -333,7 +325,7 @@ function TradeDashboard() {
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="col-span-2 flex flex-col gap-4">
           <Card className="bg-[#171717] border-zinc-800">
-            <CardHeader className="space-y-2">
+            <CardHeader className="space-y-2  ">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <CardTitle className="text-2xl leading-tight">
                   {event?.title || 'Untitled event'}
@@ -874,4 +866,4 @@ function TradeDashboard() {
   );
 }
 
-export default withProtectedRoute(TradeDashboard);
+export default withProtectedRoute(TradeDashboard, <TradePageShimmer />);

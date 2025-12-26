@@ -9,7 +9,7 @@ import { Badge } from '@repo/ui/components/badge';
 import { Button } from '@repo/ui/components/button';
 import { Input } from '@repo/ui/components/input';
 import { withProtectedRoute } from '../context/withProtectedRoute';
-import { Skeleton } from '@repo/ui/components/skeleton';
+import { UserPageShimmer } from '../components/Shimmers';
 import { BadgeCheckIcon } from 'lucide-react';
 import useBalance from '../hooks/useBalance';
 import apiClient from '../lib/api-client';
@@ -117,17 +117,7 @@ function UserWalletCard() {
     }
 
     if (loading) {
-        return (
-            <div className='px-6 bg-zinc-950 min-h-screen py-24 grid lg:grid-cols-3 gap-4 '>
-
-                
-
-                <Skeleton className="bg-zinc-500 lg:col-span-1 col-span-3 mb-2 rounded-xl" />
-                <Skeleton className="lg:col-span-2 rounded-xl col-span-3 bg-zinc-500 mb-2 " />
-                <Skeleton className="lg:col-span-3 rounded-xl col-span-3 bg-zinc-500  " />
-
-            </div>
-        )
+        return <UserPageShimmer />;
     }
 
     return (
@@ -270,4 +260,4 @@ function UserWalletCard() {
         </div>
     );
 }
-export default withProtectedRoute(UserWalletCard)
+export default withProtectedRoute(UserWalletCard, <UserPageShimmer />)

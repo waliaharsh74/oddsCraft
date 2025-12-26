@@ -44,6 +44,7 @@ enum OutcomeStaus {
   YES
   NO
   DISPUTED
+  VOID
 }
 
 enum Role {
@@ -84,6 +85,9 @@ model Trade {
   takerId        String
   makerId        String
   createdAt      DateTime  @default(now())
+  claimedAt      DateTime?
+  claimedBy      String?
+  claimId        String?
   eventId        String
   event          Event     @relation("EventTrades", fields: [eventId], references: [id])
   aggressorOrder Order     @relation("AggressorOrder", fields: [orderAggressorId], references: [id])
@@ -94,6 +98,7 @@ model Trade {
 
   @@index([makerId])
   @@index([takerId])
+  @@index([claimId])
 }
 
 enum EventStatus {

@@ -10,6 +10,7 @@ import { withProtectedRoute } from '../../context/withProtectedRoute';
 import { useShallow } from 'zustand/react/shallow';
 import { adminProtectedRoute } from '@/app/context/adminProtectedRoute';
 import Link from 'next/link';
+import { AdminEventsShimmer } from '@/app/components/Shimmers';
 
 type Event = { id: string; title: string; endsAt: string; status: 'OPEN' | 'CLOSED' | 'SETTLED' };
 
@@ -23,6 +24,7 @@ function AdminEvents() {
     const [events, setEvents] = useState<Event[]>([]);
     const [form, setForm] = useState({ title: '', endsAt: '' });
     const [msg, setMsg] = useState('');
+    const [loading, setLoading] = useState(true);
     const { user, isAuthenticated, initialize } = useAuthStore(useShallow((state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
@@ -36,22 +38,31 @@ function AdminEvents() {
     useEffect(() => {
         if (!isAuthenticated) {
             setMsg('sign in to manage events');
+            setLoading(false);
             return;
         }
         if (user?.role !== 'ADMIN') {
             setMsg('admin access required');
+            setLoading(false);
             return;
         }
         const fetchData = async () => {
             try {
+                setLoading(true);
                 const { data } = await apiClient.get(`/admin/event`);
                 setEvents(data);
             } catch {
                 setMsg('could not load events');
+            } finally {
+                setLoading(false);
             }
         };
         fetchData();
     }, [isAuthenticated, user]);
+
+    if (loading) {
+        return <AdminEventsShimmer />;
+    }
 
     async function create() {
         const ok = formSchema.safeParse(form);
@@ -121,4 +132,7 @@ function AdminEvents() {
     );
 }
 
-export default withProtectedRoute(adminProtectedRoute(AdminEvents))
+export default withProtectedRoute(
+    adminProtectedRoute(AdminEvents),
+    <AdminEventsShimmer />
+)

@@ -8,7 +8,7 @@ import { Badge } from '@repo/ui/components/badge';
 import { Button } from '@repo/ui/components/button';
 import { Input } from '@repo/ui/components/input';
 import { Label } from '@repo/ui/components/label';
-import { Skeleton } from '@repo/ui/components/skeleton';
+import { AdminEventDetailShimmer } from '@/app/components/Shimmers';
 import {
     Select,
     SelectContent,
@@ -23,6 +23,7 @@ import { useAuthStore } from '../../../store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
 
 type EventStatus = 'OPEN' | 'CLOSED' | 'SETTLED';
+type EventOutcome = 'YES' | 'NO' | 'VOID' | 'DISPUTED';
 
 type EventDetail = {
     id: string;
@@ -31,6 +32,7 @@ type EventDetail = {
     startsAt?: string;
     endsAt: string;
     status: EventStatus;
+    outcome?: EventOutcome | null;
     createdAt?: string;
     updatedAt?: string;
 };
@@ -49,11 +51,12 @@ function AdminEventDetailPage() {
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [message, setMessage] = useState('');
-    const [form, setForm] = useState<{ title: string; description: string; endsAt: string; status: EventStatus | '' }>({
+    const [form, setForm] = useState<{ title: string; description: string; endsAt: string; status: EventStatus | ''; outcome: EventOutcome | '' }>({
         title: '',
         description: '',
         endsAt: '',
         status: '',
+        outcome: '',
     });
 
     const statusTone = useMemo(() => ({
@@ -81,6 +84,7 @@ function AdminEventDetailPage() {
                     description: detail.description ?? '',
                     endsAt: toDateTimeLocal(detail.endsAt),
                     status: detail.status,
+                    outcome: detail.outcome ?? '',
                 });
             } catch (error: any) {
                 setMessage(error?.response?.data?.error || 'Could not load event.');
@@ -103,6 +107,7 @@ function AdminEventDetailPage() {
         if ((form.description ?? '') !== (event.description ?? '')) payload.description = form.description;
         if (form.endsAt && form.endsAt !== toDateTimeLocal(event.endsAt)) payload.endsAt = new Date(form.endsAt);
         if (form.status && form.status !== event.status) payload.status = form.status;
+        if (form.outcome && form.outcome !== event.outcome) payload.outcome = form.outcome;
 
         if (!Object.keys(payload).length) {
             setMessage('No changes to save.');
@@ -119,6 +124,7 @@ function AdminEventDetailPage() {
                 description: data.description ?? '',
                 endsAt: toDateTimeLocal(data.endsAt),
                 status: data.status,
+                outcome: data.outcome ?? '',
             });
             setMessage('Event updated successfully.');
         } catch (error: any) {
@@ -146,17 +152,7 @@ function AdminEventDetailPage() {
     };
 
     if (loading) {
-        return (
-            <div className="relative min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-800 text-zinc-100 overflow-hidden px-6 py-24">
-                <div className="absolute -top-40 -left-40 w-80 h-80 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse" />
-                <div className="absolute lg:-bottom-10 lg:-right-32 bottom-4 right-4 w-[14rem] h-[14rem] bg-fuchsia-500 rounded-full blur-3xl opacity-20 animate-pulse" />
-                <div className="max-w-5xl mx-auto space-y-4">
-                    <Skeleton className="h-14 w-64 bg-zinc-700" />
-                    <Skeleton className="h-[180px] bg-zinc-700" />
-                    <Skeleton className="h-[260px] bg-zinc-700" />
-                </div>
-            </div>
-        );
+        return <AdminEventDetailShimmer />;
     }
 
     if (!event) {
@@ -203,7 +199,7 @@ function AdminEventDetailPage() {
                             Back to events
                         </Button>
                         {isAdmin && (
-                            <Button variant="glassy" onClick={() => setForm((f) => ({ ...f, title: event.title, description: event.description ?? '', endsAt: toDateTimeLocal(event.endsAt), status: event.status }))}>
+                            <Button variant="glassy" onClick={() => setForm((f) => ({ ...f, title: event.title, description: event.description ?? '', endsAt: toDateTimeLocal(event.endsAt), status: event.status, outcome: event.outcome ?? '' }))}>
                                 Reset form
                             </Button>
                         )}
@@ -223,6 +219,10 @@ function AdminEventDetailPage() {
                             <div className="space-y-1">
                                 <p className="text-xs text-zinc-500">Ends at</p>
                                 <p className="font-medium">{formatDateTime(event.endsAt)}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-xs text-zinc-500">Outcome</p>
+                                <p className="font-medium">{event.outcome || 'Pending'}</p>
                             </div>
                             <div className="space-y-1">
                                 <p className="text-xs text-zinc-500">Created</p>
@@ -288,6 +288,20 @@ function AdminEventDetailPage() {
                                         </SelectContent>
                                     </Select>
                                 </div>
+                                <div className="space-y-2">
+                                    <Label className="text-zinc-300">Outcome</Label>
+                                    <Select value={form.outcome} onValueChange={(value) => setForm((f) => ({ ...f, outcome: value as EventOutcome }))}>
+                                        <SelectTrigger className="w-full bg-black/40 border border-zinc-700 text-white">
+                                            <SelectValue placeholder="Select outcome" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-zinc-900 text-white border border-zinc-700">
+                                            <SelectItem value="YES">YES</SelectItem>
+                                            <SelectItem value="NO">NO</SelectItem>
+                                            <SelectItem value="VOID">VOID</SelectItem>
+                                            <SelectItem value="DISPUTED">DISPUTED</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
                             <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
                                 {message && (
@@ -310,4 +324,7 @@ function AdminEventDetailPage() {
     );
 }
 
-export default withProtectedRoute(adminProtectedRoute(AdminEventDetailPage));
+export default withProtectedRoute(
+    adminProtectedRoute(AdminEventDetailPage),
+    <AdminEventDetailShimmer />
+);
