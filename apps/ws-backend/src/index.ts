@@ -50,6 +50,21 @@ const AUTH_QUERY_KEYS = ["token", "accessToken", "access_token"] as const;
 const firstHeaderValue = (value?: string | string[]) =>
     Array.isArray(value) ? value[0] : value;
 
+const getRequestScheme = (req: any) => {
+    const forwardedProto = firstHeaderValue(req?.headers?.["x-forwarded-proto"]);
+    if (forwardedProto) {
+        const proto = forwardedProto.split(",")[0]?.trim().toLowerCase();
+        if (proto === "https" || proto === "wss") return "wss";
+        return "ws";
+    }
+    return req?.socket?.encrypted ? "wss" : "ws";
+};
+
+const getRequestHost = (req: any) =>
+    firstHeaderValue(req?.headers?.["x-forwarded-host"]) ||
+    firstHeaderValue(req?.headers?.host) ||
+    "localhost";
+
 const isLikelyJwt = (value: string) => value.split(".").length === 3;
 
 const getTokenFromAuthorization = (value?: string | string[]) => {
@@ -169,7 +184,9 @@ sub.on('message', (channel, raw) => {
 
 wss.on('connection', async (ws: any, req) => {
     try {
-        const url = new URL(req.url || '/', `ws://${req.headers.host}`);
+        const scheme = getRequestScheme(req);
+        const host = getRequestHost(req);
+        const url = new URL(req.url || '/', `${scheme}://${host}`);
         const eventId = url.searchParams.get('eventId');
 
         const token = getAuthToken(req, url);
