@@ -1,37 +1,105 @@
-events {
-    # Event directives...
+# /etc/nginx/sites-available/oddscraft
+
+# Needed for proper Connection header on WS upgrades
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
 }
 
-http {
-	server {
+# ----------------------------
+# 1) HTTP BACKEND (API)
+# ----------------------------
+
+# HTTP -> HTTPS redirect
+server {
     listen 80;
     server_name oddscraft.http-backend.waliabro.xyz;
 
-    location / {
-        proxy_pass http://localhost:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
+    location /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
     }
-	}
 
-    server {
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# HTTPS API reverse proxy
+server {
+    listen 443 ssl http2;
+    server_name oddscraft.http-backend.waliabro.xyz;
+
+    ssl_certificate     /etc/letsencrypt/live/oddscraft.http-backend.waliabro.xyz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/oddscraft.http-backend.waliabro.xyz/privkey.pem;
+
+    # Optional but good
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    location / {
+        proxy_pass http://127.0.0.1:3001;
+
+        proxy_http_version 1.1;
+
+        # Usual reverse-proxy headers
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+    }
+}
+
+# ----------------------------
+# 2) WS BACKEND (WebSocket)
+# ----------------------------
+
+# HTTP -> HTTPS redirect (and keep ACME working)
+server {
     listen 80;
     server_name oddscraft.ws-backend.waliabro.xyz;
 
+    location /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+    }
+
     location / {
-        proxy_pass http://localhost:8080;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
+        return 301 https://$host$request_uri;
     }
 }
 
+# HTTPS (WSS) reverse proxy
+server {
+    listen 443 ssl http2;
+    server_name oddscraft.ws-backend.waliabro.xyz;
+
+    ssl_certificate     /etc/letsencrypt/live/oddscraft.ws-backend.waliabro.xyz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/oddscraft.ws-backend.waliabro.xyz/privkey.pem;
+
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+
+        proxy_http_version 1.1;
+
+        # WebSocket upgrade magic
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Keep WS connections alive
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+
+        # Optional: reduce buffering latency
+        proxy_buffering off;
+    }
 }
-
-
-
