@@ -10,10 +10,7 @@ export const SkeletonLoader = () => {
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/10">
                         <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-transparent" />
                     </div>
-                    {/* <div className="space-y-1">
-                        <p className="text-sm text-white/70">Checking your session</p>
-                        <p className="text-xs text-white/50">Connecting to OddsCraft...</p>
-                    </div> */}
+                    {}
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-3">

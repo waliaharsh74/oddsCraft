@@ -1,5 +1,5 @@
 import type { AuthRequest, MarketMakerSnapshot, SchemaHandler, Side, OrderInMem, TokenPayload, TradeMsg, ValidatedInput } from "./types"
-import { OrderBook, BookLevel } from "./classes"
+import { OrderBook, BookLevel, assertValid, roundToTick } from "./classes"
 import { signupSchema, signinSchema, cancelSchema, orderSchema, balanceSchema, eventCreateSchema, eventUpdateSchema, EventSchema, liquidateSchema, eventIdQuerySchema, ordersQuerySchema } from "./zodSchema"
 import { ACCESS_TOKEN, REFRESH_TOKEN, USER_ID } from "./constants"
 import { REDIS_CHANNELS, redisKeys, RedisChannel } from "./redis"
@@ -14,6 +14,8 @@ export {
     ValidatedInput,
     OrderBook,
     BookLevel,
+    assertValid,
+    roundToTick,
     signupSchema,
     signinSchema,
     cancelSchema,

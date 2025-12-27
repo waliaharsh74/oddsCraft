@@ -9,7 +9,7 @@ import {
     CardContent,
 } from '@repo/ui/components/card';
 import { Button } from '@repo/ui/components/button';
-import { Skeleton } from "@repo/ui/components/skeleton"
+import { EventsPageShimmer } from '../components/Shimmers';
 import { withProtectedRoute } from '../context/withProtectedRoute';
 import apiClient from '../lib/api-client';
 
@@ -40,16 +40,8 @@ type Event = {
 
         fetchEvents();
     }, []);
-    if(loading){
-        return(
-            <div className='px-6 bg-zinc-950 min-h-screen '>
-                <div className='py-6'></div>
-                <Skeleton className="h-[120px]   my-6  rounded-xl bg-zinc-500 " />
-                <Skeleton className="h-[120px]   my-6  rounded-xl bg-zinc-500 " />
-                <Skeleton className="h-[120px]  my-6  rounded-xl bg-zinc-500 " />
-                
-            </div>
-        )
+    if (loading) {
+        return <EventsPageShimmer />;
     }
 
     return (
@@ -93,13 +85,8 @@ type Event = {
                                     </td>
                                 </tr>
                             ))}
-                            {/* {loading && (
-                                <tr>
-                                    <td colSpan={3} className="p-4 text-center text-zinc-500">
+                            
 
-                                        
-                                    </td>
-                                </tr>)} */}
 
                             {events.length === 0 && !msg && (
                                 <tr>
@@ -115,4 +102,4 @@ type Event = {
         </div>
     );
 }
-export default withProtectedRoute(OpenEventsPage)
+export default withProtectedRoute(OpenEventsPage, <EventsPageShimmer />)

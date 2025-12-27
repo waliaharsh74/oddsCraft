@@ -3,16 +3,17 @@ import { randomUUID } from "crypto";
 import { EventEmitter } from "events";
 
 const TICK_SIZE = 0.1;                     
-const FACE_MIN = 0.0 + TICK_SIZE;          
-const FACE_MAX = 10.0 - TICK_SIZE;         
+const FACE_MIN = 0.0;                      
+const FACE_MAX = 10.0;                     
 const MAX_LEVELS = 200
 
-function roundToTick(raw: number) {
+export function roundToTick(raw: number) {
     return Math.round(raw / TICK_SIZE) * TICK_SIZE;
 }
 
-function assertValid(price: number, qty: number) {
+export function assertValid(price: number, qty: number) {
     if (qty <= 0 || !Number.isFinite(qty)) throw new Error("bad_qty");
+    if (!Number.isFinite(price)) throw new Error("bad_price");
     const norm = roundToTick(price);
     if (Math.abs(norm - price) > 1e-9) throw new Error("bad_tick");
     if (norm < FACE_MIN || norm > FACE_MAX) throw new Error("bad_price");
@@ -43,54 +44,101 @@ export class OrderBook extends EventEmitter {
             price: lvl.price,
             qty: lvl.orders.reduce((s, o) => s + o.qty, 0),
         }));
-        return rows.sort((a, b) => (side === "YES" ? b.price - a.price : a.price - b.price));
+        return rows.sort((a, b) => b.price - a.price);
     }
 
-    addOrder(o: OrderInMem): TradeMsg[] {
-        assertValid(o.price, o.qty);
-        if (o.isExit) {                     
-            this.addLevel(o.side === 'YES' ? this.bids : this.asks, o);
-            this.emitDepth();                 
-            return [];
+    addOrder(
+        o: OrderInMem,
+        opts?: {
+            maxCost?: bigint;
+            costForFill?: (price: number, qty: number) => bigint;
+            skipSelfTrade?: boolean;
+        }
+    ): TradeMsg[] {
+        const isMarket = o.orderType === "MARKET";
+        if (!isMarket) {
+            assertValid(o.price, o.qty);
+            o = { ...o, price: roundToTick(o.price) };
+        } else {
+            if (o.qty <= 0 || !Number.isFinite(o.qty)) throw new Error("bad_qty");
         }
 
-        o = { ...o, price: roundToTick(o.price) };
-
-        const oppPrice = Number((10 - o.price).toFixed(1));   
-        const myMap = o.side === 'YES' ? this.bids : this.asks;
-        const oppMap = o.side === 'YES' ? this.asks : this.bids;
-        const lvl = oppMap.get(oppPrice);
+        const myMap = o.side === "YES" ? this.bids : this.asks;
+        const oppMap = o.side === "YES" ? this.asks : this.bids;
         const trades: TradeMsg[] = [];
 
         let remaining = o.qty;
+        let remainingBudget = opts?.maxCost;
+        const hasBudget = remainingBudget !== undefined && typeof opts?.costForFill === "function";
+        const skipSelf = opts?.skipSelfTrade ?? true;
 
-        while (remaining && lvl && lvl.orders.length>0) {
-            const maker = lvl.orders[0]!;
-            const fill = Math.min(remaining, maker.qty);
+        if (remainingBudget !== undefined && !opts?.costForFill)
+            throw new Error("missing_cost_fn");
 
-            maker.qty -= fill;
-            remaining -= fill;
+        const minOppPrice = isMarket ? undefined : roundToTick(10 - o.price);
+        const oppPrices = [...oppMap.keys()]
+            .filter((p) => (isMarket ? true : p >= minOppPrice!))
+            .sort((a, b) => b - a);
 
-            trades.push({
-                tradeId: randomUUID(),
-                side: o.side,
-                price: o.price,
-                qty: fill,
-                taker: o.userId,
-                maker: maker.userId,
-                makerOrderId: maker.id,
-                remainingMakerQty: maker.qty,
-                ts: Date.now(),
-            });
+        for (const makerPrice of oppPrices) {
+            const lvl = oppMap.get(makerPrice);
+            if (!lvl) continue;
 
-            if (maker.qty === 0) lvl.orders.shift();
+            while (remaining > 0 && lvl.orders.length > 0) {
+                const makerIndex = skipSelf
+                    ? lvl.orders.findIndex((maker) => maker.userId !== o.userId)
+                    : 0;
+                if (makerIndex === -1) break;
+
+                const maker = lvl.orders[makerIndex]!;
+                const takerPrice = roundToTick(10 - makerPrice);
+                let fill = Math.min(remaining, maker.qty);
+
+                if (hasBudget) {
+                    const unitCost = opts!.costForFill!(takerPrice, 1);
+                    if (unitCost < 0n) break;
+                    if (unitCost > 0n) {
+                        const affordable = remainingBudget! / unitCost;
+                        if (affordable <= 0n) {
+                            remaining = 0;
+                            break;
+                        }
+                        const affordableQty = Math.min(fill, Number(affordable));
+                        if (affordableQty <= 0) {
+                            remaining = 0;
+                            break;
+                        }
+                        fill = affordableQty;
+                        remainingBudget = remainingBudget! - unitCost * BigInt(fill);
+                    }
+                }
+
+                maker.qty -= fill;
+                remaining -= fill;
+
+                trades.push({
+                    tradeId: randomUUID(),
+                    side: o.side,
+                    price: takerPrice,
+                    qty: fill,
+                    taker: o.userId,
+                    maker: maker.userId,
+                    makerOrderId: maker.id,
+                    remainingMakerQty: maker.qty,
+                    ts: Date.now(),
+                });
+
+                if (maker.qty === 0) lvl.orders.splice(makerIndex, 1);
+
+            }
+
+            if (lvl.orders.length === 0) oppMap.delete(makerPrice);
+            if (!remaining) break;
         }
 
-        if (lvl && lvl.orders.length === 0) oppMap.delete(oppPrice);
+        if (remaining && !isMarket) this.addLevel(myMap, { ...o, qty: remaining });
 
-        if (remaining) this.addLevel(myMap, { ...o, qty: remaining });
-
-        if (trades.length) this.emit('trade', trades);
+        if (trades.length) this.emit("trade", trades);
         this.emitDepth();
         return trades;
     }

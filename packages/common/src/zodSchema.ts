@@ -17,10 +17,17 @@ export const signinSchema = signupSchema;
 
 export const orderSchema = z.object({
     side: z.enum(["YES", "NO"]).transform((v) => v as Side),
-    price: z.number().min(0).max(10),
+    price: z.number().optional(),
     qty: z.number().int().positive(),
     eventId:z.string().uuid(),
-    isExit: z.boolean().default(false)
+    isExit: z.boolean().default(false),
+    orderType: z.enum(["LIMIT", "MARKET"]).default("LIMIT"),
+}).superRefine((payload, ctx) => {
+    if (payload.orderType !== "MARKET") {
+        if (typeof payload.price !== "number" || !Number.isFinite(payload.price)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "price_required", path: ["price"] });
+        }
+    }
 });
 export const liquidateSchema=z.object({
     eventId: z.string().uuid(),
@@ -49,6 +56,7 @@ export const eventUpdateSchema = z.object({
     description: z.string().max(500).optional(),
     endsAt: z.coerce.date().optional(),
     status: z.enum(['OPEN', 'CLOSED', 'SETTLED']).optional(),
+    outcome: z.enum(['YES', 'NO', 'VOID', 'DISPUTED']).optional(),
 });
 export const EventStatusEnum = z.enum(['OPEN', 'CLOSED', 'SETTLED']);
 export const EventSchema = z.object({

@@ -45,19 +45,70 @@ const buildPricingPayload = (state: MarketMakerSnapshot) => {
     };
 };
 
+const AUTH_QUERY_KEYS = ["token", "accessToken", "access_token"] as const;
 
-// const hydrateMarketMakerCacheFromDb = async (eventId?: string | null) => {
-//     try {
-//         const rows = await prisma.marketMakerState.findMany(
-//             eventId ? { where: { eventId } } : undefined
-//         );
-//         await Promise.all(rows.map(async (row) => cacheMarketMakerState(mapDbStateToSnapshot(row))));
-//     } catch (err) {
-//         console.error('[WS] Failed to hydrate market maker cache from DB', err);
-//     }
-// };
+const firstHeaderValue = (value?: string | string[]) =>
+    Array.isArray(value) ? value[0] : value;
 
-// hydrateMarketMakerCacheFromDb().catch((err) => console.error('[WS] Startup market maker cache hydration failed', err));
+const isLikelyJwt = (value: string) => value.split(".").length === 3;
+
+const getTokenFromAuthorization = (value?: string | string[]) => {
+    const raw = firstHeaderValue(value);
+    if (!raw) return;
+    const match = raw.match(/^Bearer\s+(.+)$/i);
+    return (match?.[1] ?? raw).trim() || undefined;
+};
+
+const getTokenFromProtocols = (value?: string | string[]) => {
+    const raw = firstHeaderValue(value);
+    if (!raw) return;
+    const parts = raw
+        .split(",")
+        .map(part => part.trim())
+        .filter(Boolean);
+    for (const part of parts) {
+        if (/^bearer\s+/i.test(part)) {
+            const token = part.replace(/^bearer\s+/i, "").trim();
+            if (token) return token;
+        }
+        if (isLikelyJwt(part)) return part;
+    }
+};
+
+const getTokenFromQuery = (url: URL) => {
+    for (const key of AUTH_QUERY_KEYS) {
+        const token = url.searchParams.get(key);
+        if (token) return token;
+    }
+};
+
+const getAuthToken = (req: any, url: URL) => {
+    const cookies = cookie?.parse(req?.headers?.cookie || "");
+    const cookieToken = cookies?.[ACCESS_TOKEN];
+    if (cookieToken) return cookieToken;
+
+    const headerToken = getTokenFromAuthorization(req?.headers?.authorization);
+    if (headerToken) return headerToken;
+
+    const queryToken = getTokenFromQuery(url);
+    if (queryToken) return queryToken;
+
+    const protocolToken = getTokenFromProtocols(req?.headers?.["sec-websocket-protocol"]);
+    if (protocolToken) return protocolToken;
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 const hydrateEventCache = async (eventId?: string | null) => {
     if (!eventId) return;
@@ -121,8 +172,7 @@ wss.on('connection', async (ws: any, req) => {
         const url = new URL(req.url || '/', `ws://${req.headers.host}`);
         const eventId = url.searchParams.get('eventId');
 
-        const cookies = cookie?.parse(req?.headers?.cookie || '');
-        const token = cookies[ACCESS_TOKEN];
+        const token = getAuthToken(req, url);
 
         if (!token) {
             ws.close(4001, 'unauthorized');
@@ -130,7 +180,7 @@ wss.on('connection', async (ws: any, req) => {
         }
 
         try {
-            jwt.verify(token, JWT_SECRET);
+            ws.user = jwt.verify(token, JWT_SECRET);
         } catch {
             ws.close(4001, 'unauthorized');
             return;

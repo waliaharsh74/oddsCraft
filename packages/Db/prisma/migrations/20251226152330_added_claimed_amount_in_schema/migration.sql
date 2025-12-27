@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Trade" ALTER COLUMN "claimedAt" SET DATA TYPE TIMESTAMP(3);

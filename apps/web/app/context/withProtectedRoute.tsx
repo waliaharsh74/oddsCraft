@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { SkeletonLoader } from "../components/Skeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { useShallow } from "zustand/react/shallow";
 
-export const withProtectedRoute = (WrappedComponent: any) => {
+export const withProtectedRoute = (WrappedComponent: any, fallback?: ReactNode) => {
     return (props: any) => {
         const { isAuthenticated, isLoading, initialized } = useAuthStore(useShallow((state) => ({
             isAuthenticated: state.isAuthenticated,
@@ -27,7 +27,7 @@ export const withProtectedRoute = (WrappedComponent: any) => {
         }, [initialized, isAuthenticated, isLoading, router]);
 
         if (!initialized || isLoading) {
-            return <SkeletonLoader /> 
+            return fallback ?? <SkeletonLoader /> 
         }
 
         if (!isAuthenticated) {

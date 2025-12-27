@@ -2,6 +2,7 @@ import type { Request } from "express";
 import type { ZodTypeAny } from "zod";
 
 export type Side = "YES" | "NO";
+export type OrderType = "LIMIT" | "MARKET";
 
 export type OrderInMem = {
     id: string;
@@ -11,6 +12,7 @@ export type OrderInMem = {
     qty: number;   
     createdAt: number; 
     isExit?: boolean;
+    orderType?: OrderType;
 };
 
 export type TradeMsg = {

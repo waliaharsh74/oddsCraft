@@ -1,22 +1,22 @@
--- CreateEnum
+
 CREATE TYPE "OrderSide" AS ENUM ('YES', 'NO');
 
--- CreateEnum
+
 CREATE TYPE "OrderStatus" AS ENUM ('OPEN', 'FILLED', 'CANCELLED');
 
--- CreateEnum
+
 CREATE TYPE "OutcomeStaus" AS ENUM ('YES', 'NO', 'DISPUTED');
 
--- CreateEnum
+
 CREATE TYPE "Role" AS ENUM ('ADMIN', 'MEMBER');
 
--- CreateEnum
+
 CREATE TYPE "EventStatus" AS ENUM ('OPEN', 'CLOSED', 'SETTLED');
 
--- CreateEnum
+
 CREATE TYPE "DisputeStatus" AS ENUM ('RESOLVED', 'INREVIEW');
 
--- CreateTable
+
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
@@ -29,7 +29,7 @@ CREATE TABLE "User" (
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+
 CREATE TABLE "Order" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE "Order" (
     CONSTRAINT "Order_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+
 CREATE TABLE "Trade" (
     "id" TEXT NOT NULL,
     "orderAggressorId" TEXT NOT NULL,
@@ -62,7 +62,7 @@ CREATE TABLE "Trade" (
     CONSTRAINT "Trade_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+
 CREATE TABLE "Event" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -77,7 +77,7 @@ CREATE TABLE "Event" (
     CONSTRAINT "Event_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+
 CREATE TABLE "Dispute" (
     "id" TEXT NOT NULL,
     "eventId" TEXT NOT NULL,
@@ -87,7 +87,7 @@ CREATE TABLE "Dispute" (
     CONSTRAINT "Dispute_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+
 CREATE TABLE "MarketMakerState" (
     "eventId" TEXT NOT NULL,
     "priceYesPaise" TEXT NOT NULL,
@@ -105,47 +105,47 @@ CREATE TABLE "MarketMakerState" (
     CONSTRAINT "MarketMakerState_pkey" PRIMARY KEY ("eventId")
 );
 
--- CreateIndex
+
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
--- CreateIndex
+
 CREATE INDEX "Order_status_side_idx" ON "Order"("status", "side");
 
--- CreateIndex
+
 CREATE INDEX "Trade_makerId_idx" ON "Trade"("makerId");
 
--- CreateIndex
+
 CREATE INDEX "Trade_takerId_idx" ON "Trade"("takerId");
 
--- CreateIndex
+
 CREATE INDEX "Event_status_endsAt_idx" ON "Event"("status", "endsAt");
 
--- CreateIndex
+
 CREATE UNIQUE INDEX "Dispute_eventId_key" ON "Dispute"("eventId");
 
--- AddForeignKey
+
 ALTER TABLE "Order" ADD CONSTRAINT "Order_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
+
 ALTER TABLE "Order" ADD CONSTRAINT "Order_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
+
 ALTER TABLE "Trade" ADD CONSTRAINT "Trade_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
+
 ALTER TABLE "Trade" ADD CONSTRAINT "Trade_orderAggressorId_fkey" FOREIGN KEY ("orderAggressorId") REFERENCES "Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
+
 ALTER TABLE "Trade" ADD CONSTRAINT "Trade_makerOrderId_fkey" FOREIGN KEY ("makerOrderId") REFERENCES "Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
+
 ALTER TABLE "Trade" ADD CONSTRAINT "Trade_makerId_fkey" FOREIGN KEY ("makerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
+
 ALTER TABLE "Trade" ADD CONSTRAINT "Trade_takerId_fkey" FOREIGN KEY ("takerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
+
 ALTER TABLE "Dispute" ADD CONSTRAINT "Dispute_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
+
 ALTER TABLE "MarketMakerState" ADD CONSTRAINT "MarketMakerState_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;

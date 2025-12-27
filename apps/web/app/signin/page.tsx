@@ -15,7 +15,7 @@ import { Label } from "@repo/ui/components/label";
 import axios from "axios"
 import { useAuthStore } from "../store/useAuthStore";
 import { useShallow } from "zustand/react/shallow";
-import { SkeletonLoader } from "../components/Skeleton";
+import { AuthPageShimmer } from "../components/Shimmers";
 
 interface signInError {
     email?: string[] | undefined;
@@ -82,11 +82,11 @@ export default function SignIn() {
     }
 
     if (!initialized) {
-        return <SkeletonLoader />
+        return <AuthPageShimmer />
     }
 
     if (isAuthenticated) {
-        return <SkeletonLoader />
+        return <AuthPageShimmer />
     }
 
     return (

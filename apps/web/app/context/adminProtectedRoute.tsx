@@ -16,7 +16,7 @@ export const adminProtectedRoute = (WrappedComponent: any) => {
         isAuthenticated: state.isAuthenticated,
 
     })))
-        // const initialize = useAuthStore((state) => state.initialize)
+        
         const router = useRouter();
 
      
