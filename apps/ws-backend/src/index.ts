@@ -100,16 +100,50 @@ const getTokenFromQuery = (url: URL) => {
 const getAuthToken = (req: any, url: URL) => {
     const cookies = cookie?.parse(req?.headers?.cookie || "");
     const cookieToken = cookies?.[ACCESS_TOKEN];
-    if (cookieToken) return cookieToken;
+    if (cookieToken) return { token: cookieToken, source: "cookie" };
 
     const headerToken = getTokenFromAuthorization(req?.headers?.authorization);
-    if (headerToken) return headerToken;
+    if (headerToken) return { token: headerToken, source: "authorization" };
 
     const queryToken = getTokenFromQuery(url);
-    if (queryToken) return queryToken;
+    if (queryToken) return { token: queryToken, source: "query" };
 
     const protocolToken = getTokenFromProtocols(req?.headers?.["sec-websocket-protocol"]);
-    if (protocolToken) return protocolToken;
+    if (protocolToken) return { token: protocolToken, source: "sec-websocket-protocol" };
+    return {};
+};
+
+const buildRequestLog = (req: any) => ({
+    method: req?.method,
+    url: req?.url,
+    remoteAddress: req?.socket?.remoteAddress,
+    remotePort: req?.socket?.remotePort,
+    headers: {
+        host: firstHeaderValue(req?.headers?.host),
+        "x-forwarded-host": firstHeaderValue(req?.headers?.["x-forwarded-host"]),
+        "x-forwarded-proto": firstHeaderValue(req?.headers?.["x-forwarded-proto"]),
+        "x-forwarded-for": firstHeaderValue(req?.headers?.["x-forwarded-for"]),
+        "x-real-ip": firstHeaderValue(req?.headers?.["x-real-ip"]),
+        origin: firstHeaderValue(req?.headers?.origin),
+        "user-agent": firstHeaderValue(req?.headers?.["user-agent"]),
+        "sec-websocket-protocol": firstHeaderValue(req?.headers?.["sec-websocket-protocol"]),
+    },
+    hasCookie: Boolean(req?.headers?.cookie),
+});
+
+const truncateLogValue = (value: string, max = 500) =>
+    value.length > max ? `${value.slice(0, max)}...[truncated]` : value;
+
+const formatWsMessage = (data: any, isBinary?: boolean) => {
+    if (isBinary) {
+        const length = typeof data?.length === "number" ? data.length : undefined;
+        return `<binary${length ? ` ${length}b` : ""}>`;
+    }
+    try {
+        return truncateLogValue(String(data));
+    } catch {
+        return "<unprintable>";
+    }
 };
 
 
@@ -189,9 +223,22 @@ wss.on('connection', async (ws: any, req) => {
         const url = new URL(req.url || '/', `${scheme}://${host}`);
         const eventId = url.searchParams.get('eventId');
 
-        const token = getAuthToken(req, url);
+        const { token, source: tokenSource } = getAuthToken(req, url);
+
+        console.log('[WS] connection attempt', {
+            scheme,
+            host,
+            eventId,
+            tokenSource,
+            request: buildRequestLog(req),
+        });
+
+        if (!eventId) {
+            console.warn('[WS] missing eventId', { url: url.toString() });
+        }
 
         if (!token) {
+            console.warn('[WS] unauthorized: missing token', { tokenSource });
             ws.close(4001, 'unauthorized');
             return;
         }
@@ -199,23 +246,37 @@ wss.on('connection', async (ws: any, req) => {
         try {
             ws.user = jwt.verify(token, JWT_SECRET);
         } catch {
+            console.warn('[WS] unauthorized: invalid token', { tokenSource });
             ws.close(4001, 'unauthorized');
             return;
         }
 
         ws.eventId = eventId;
+        console.log('[WS] connection accepted', {
+            eventId,
+            userId: ws?.user?.id ?? ws?.user?.userId,
+            clients: wss.clients.size,
+        });
 
         await hydrateEventCache(eventId);
 
         if (eventId && lastDepth.has(eventId)) {
             ws.send(JSON.stringify({ type: 'depth', payload: lastDepth.get(eventId) }));
+            console.log('[WS] sent cached depth', { eventId });
         }
         if (eventId && lastPricing.has(eventId)) {
             ws.send(JSON.stringify({ type: 'pricing', payload: lastPricing.get(eventId) }));
+            console.log('[WS] sent cached pricing', { eventId });
         }
 
         ws.isAlive = true;
-        ws.on("message", () => {
+        ws.on("message", (data: any, isBinary: boolean) => {
+            console.log('[WS] client message', {
+                eventId: ws.eventId,
+                userId: ws?.user?.id ?? ws?.user?.userId,
+                isBinary: Boolean(isBinary),
+                payload: formatWsMessage(data, isBinary),
+            });
             ws.send(JSON.stringify({ msg: "Hello!" }))
         })
         ws.on('pong', () => (ws.isAlive = true));
@@ -223,6 +284,14 @@ wss.on('connection', async (ws: any, req) => {
             console.log("error in connecting to websocket server:", data)
 
         })
+        ws.on('close', (code: number, reason: Buffer) => {
+            console.log('[WS] connection closed', {
+                eventId: ws.eventId,
+                userId: ws?.user?.id ?? ws?.user?.userId,
+                code,
+                reason: reason?.toString(),
+            });
+        });
     } catch (error) {
         console.log('err',error);       
     }    
