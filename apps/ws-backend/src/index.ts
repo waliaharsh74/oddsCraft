@@ -113,9 +113,24 @@ const getAuthToken = (req: any, url: URL) => {
     return {};
 };
 
+const sanitizeRequestUrl = (rawUrl?: string) => {
+    if (!rawUrl) return rawUrl;
+    try {
+        const parsed = new URL(rawUrl, "http://localhost");
+        for (const key of AUTH_QUERY_KEYS) {
+            if (parsed.searchParams.has(key)) {
+                parsed.searchParams.set(key, "<redacted>");
+            }
+        }
+        return `${parsed.pathname}${parsed.search}`;
+    } catch {
+        return rawUrl;
+    }
+};
+
 const buildRequestLog = (req: any) => ({
     method: req?.method,
-    url: req?.url,
+    url: sanitizeRequestUrl(req?.url),
     remoteAddress: req?.socket?.remoteAddress,
     remotePort: req?.socket?.remotePort,
     headers: {
@@ -126,9 +141,10 @@ const buildRequestLog = (req: any) => ({
         "x-real-ip": firstHeaderValue(req?.headers?.["x-real-ip"]),
         origin: firstHeaderValue(req?.headers?.origin),
         "user-agent": firstHeaderValue(req?.headers?.["user-agent"]),
-        "sec-websocket-protocol": firstHeaderValue(req?.headers?.["sec-websocket-protocol"]),
     },
     hasCookie: Boolean(req?.headers?.cookie),
+    hasAuthorization: Boolean(req?.headers?.authorization),
+    hasSecWebSocketProtocol: Boolean(req?.headers?.["sec-websocket-protocol"]),
 });
 
 const truncateLogValue = (value: string, max = 500) =>
@@ -234,7 +250,7 @@ wss.on('connection', async (ws: any, req) => {
         });
 
         if (!eventId) {
-            console.warn('[WS] missing eventId', { url: url.toString() });
+            console.warn('[WS] missing eventId', { url: sanitizeRequestUrl(url.toString()) });
         }
 
         if (!token) {

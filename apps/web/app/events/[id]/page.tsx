@@ -20,6 +20,7 @@ import { Minus, Plus, X } from 'lucide-react';
 import { OrderSide } from '@repo/db';
 import apiClient from '@/app/lib/api-client';
 import { WS_BACKEND_URL } from '@/app/config';
+import { CLIENT_AUTH_COOKIE, getCookie } from '@/app/lib/cookies';
 import useBalance from '@/app/hooks/useBalance';
 import { toast, ToastContainer } from 'react-toastify';
 
@@ -178,7 +179,13 @@ function TradeDashboard() {
   useEffect(() => {
     if (!eventId) return;
 
-    const ws = new WebSocket(`${WSS}?eventId=${eventId}`);
+    const token = getCookie(CLIENT_AUTH_COOKIE);
+    const wsUrl = new URL(WSS);
+    wsUrl.searchParams.set('eventId', eventId);
+    if (token) {
+      wsUrl.searchParams.set('token', token);
+    }
+    const ws = new WebSocket(wsUrl.toString());
 
     ws.onopen = () => {
       ws.send(JSON.stringify({ msg: 'Hi!' }));
